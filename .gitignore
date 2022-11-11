@@ -5,7 +5,11 @@ __pycache__/
 
 # C extensions
 *.so
-.DS_Store
+
+#add ons
+**/.DS_Store
+.kaggle/
+*Data/
 
 # Distribution / packaging
 .Python
