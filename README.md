@@ -1,4 +1,4 @@
-# Final-Project-GroupX
+# Final-Project-Group5
 ## George Washington University, Machine Learning II - DATS203_10, Fall 2022
 
 ## Project
