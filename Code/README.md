@@ -13,7 +13,8 @@ chmod u+x env_setup.sh
 ```
 Below is the description of each script:
 1. env_setup.sh - runs environment setup and installs needed software
-2. ...
+2. EDA.py - Runs the preprocessing and collection of meta data of the images in order to plot EDA images.
+3. EDA_figures.ipynb - Jupyter notebook with EDA figures
 
 Next, you can either download data from Kaggle manually or setup Kaggle API credentials to download through a prepared script. See [data download](https://github.com/justjoshtings/Final-Project-Group5/blob/main/Code/README.md#data-download) section for more details on both options.
 
@@ -50,4 +51,18 @@ mv /home/ubuntu/Final-Project-Group5/Code/kaggle.json ~/.kaggle/kaggle.json
 4. Set permissions.
 ```
 chmod 600 ~/.kaggle/kaggle.json
+```
+
+## EDA 
+
+Make sure all previous steps are completed first (data download/env setup)
+1. Run the EDA python script first (this only needs to be run once). It will take a few minutes.
+```
+python3 EDA.py
+```
+
+2. You can now run and edit the Jupyter notebook as desired. Make sure you're in the directory with the notebook 
+   then run
+```
+jupyter notebook
 ```
