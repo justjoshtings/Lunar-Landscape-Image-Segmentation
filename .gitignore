@@ -10,6 +10,8 @@ __pycache__/
 **/.DS_Store
 .kaggle/
 *Data/
+*Lunar_Log/
+*myenv/
 
 # Distribution / packaging
 .Python
