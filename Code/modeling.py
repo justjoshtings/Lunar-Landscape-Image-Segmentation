@@ -18,14 +18,31 @@ BASE_PATH = os.getcwd()
 os.chdir(CODE_PATH)
 DATA_PATH = os.path.join(BASE_PATH, 'Data')
 
+# Will need to split into train/test/val later
 train_img_folder = DATA_PATH + '/images/render/'
 mask_img_folder = DATA_PATH + '/images/clean/'
 batch_size = 8
 imsize = 256
 num_classes = 4
 
+'''
+Create dataloader for train, validation, and testing dataset
+'''
 train_data = CustomDataLoader(img_folder=train_img_folder, mask_folder=mask_img_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes)
 train_data_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
 print(next(iter(train_data)))
 print(next(iter(train_data_loader)))
+
+'''
+Load Model(s)
+'''
+
+
+'''
+Train
+'''
+
+'''
+Evaluate Model(s)
+'''

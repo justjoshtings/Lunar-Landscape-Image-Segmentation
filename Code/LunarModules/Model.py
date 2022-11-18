@@ -15,6 +15,10 @@ import cv2
 import copy
 
 # WILL NEED TO CLEAN THIS WHOLE MESS UP LATER!!!
+# optimizer = adam?
+# loss = pixel wise cross entropy, jacard something
+# metric = mean IOU
+# pretrained models = unet, resnet backbone with upsampling, ... lots of others
 
 class Model:
     '''
