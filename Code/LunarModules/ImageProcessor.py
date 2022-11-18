@@ -27,7 +27,7 @@ class ImageProcessor:
             log_file (str): default is None to not have logging, otherwise, specify logging path ../filepath/log.log
 
         '''
-    def binarize(img, threshold=128):
+    def binarize(self, img, threshold=128):
         """
         Function to binarize images at some threshold pixel value
 
@@ -48,7 +48,7 @@ class ImageProcessor:
 
         return img
     
-    def rescale(img):
+    def rescale(self, img):
         """
         Function to rescale image from 0 to 255 to between 0 and 1. 
         
@@ -63,7 +63,7 @@ class ImageProcessor:
 
         return img
 
-    def one_hot_encode(img, class_map=None):
+    def one_hot_encode(self, img, class_map=None):
         """
         Function to one hot encode ground truth masks
 
@@ -107,7 +107,7 @@ class ImageProcessor:
 
         return frame
 
-    def reverse_one_hot_encode(img, class_map=None):
+    def reverse_one_hot_encode(self, img, class_map=None):
         """
         Function to reverse one hot encode 4 class channel to 3 channel RGB mask
 
@@ -125,7 +125,7 @@ class ImageProcessor:
                                     'g':[0,0,255,0],
                                     'b':[0,255,0,0]})
             
-        img = binarize(img)
+        img = self.binarize(img)
         
         all_red_channels = []
         all_green_channels = []
@@ -167,7 +167,7 @@ class ImageProcessor:
 
         return rgb_img
 
-    def preprocessor_images(image, b_threshold=128):
+    def preprocessor_images(self, image, b_threshold=128):
         """
         Function to combine preprocessing steps to feed into ImageDataGenerator.
         'Masks' have to binarize then rescale. 'Images' just have to rescale.
@@ -180,11 +180,11 @@ class ImageProcessor:
         final_img: final image to return from preprocessor after going through 
                 all processing steps.
         """
-        final_img = rescale(image)
+        final_img = self.rescale(image)
 
         return final_img
 
-    def preprocessor_masks(image, b_threshold=128, class_map=None):
+    def preprocessor_masks(self, image, b_threshold=128, class_map=None):
         """
         Function to combine preprocessing steps to feed into ImageDataGenerator.
         'Masks' have to binarize then rescale. 'Images' just have to rescale.
@@ -198,8 +198,8 @@ class ImageProcessor:
         final_img: final image to return from preprocessor after going through 
                 all processing steps.
         """
-        image = one_hot_encode(image, class_map)
-        final_img = rescale(image)
+        image = self.one_hot_encode(image, class_map)
+        final_img = self.rescale(image)
 
         return final_img
 
