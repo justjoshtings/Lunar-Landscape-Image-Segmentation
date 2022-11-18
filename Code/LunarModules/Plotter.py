@@ -8,6 +8,7 @@ created: 11/12/2022
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from LunarModules.ImageProcessor import ImageProcessor
 import seaborn as sns
 import os
 import random
@@ -29,7 +30,7 @@ class Plotter:
         '''
     
     #Sanity check, view few mages
-    def peek_images(sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None, sample_images2=None, model_alt=None):
+    def peek_images(self, sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None, sample_images2=None, model_alt=None):
         """
         Function to plot a randomly selected training set (or validation set if given validation filepaths)
 
@@ -101,7 +102,7 @@ class Plotter:
             predicted_image = model.predict(sample_images)
             predicted_image = predicted_image[0,::,::,::]
             # Reverse one hot encode predicted mask
-            predicted_image_decoded = reverse_one_hot_encode(predicted_image)
+            predicted_image_decoded = ImageProcessor.reverse_one_hot_encode(predicted_image)
 
             
             if encode == 'uint8':
@@ -128,7 +129,7 @@ class Plotter:
             predicted_image = model_alt.predict(sample_images2)
             predicted_image = predicted_image[0,::,::,::]
             # Reverse one hot encode predicted mask
-            predicted_image_decoded = reverse_one_hot_encode(predicted_image)
+            predicted_image_decoded = ImageProcessor.reverse_one_hot_encode(predicted_image)
 
             plt.subplot(144)
             if encode == 'uint8':
@@ -146,7 +147,7 @@ class Plotter:
 
         plt.show()
 
-    def peek_masks_breakdown(sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None):
+    def peek_masks_breakdown(self, sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None):
         """
         Function to plot a randomly selected prediction mask and breakdown channels
         
@@ -174,11 +175,11 @@ class Plotter:
         # Predict image
         predicted_image = model.predict(sample_images)
         predicted_image = predicted_image[0,::,::,::]
-        predicted_image = rescale(predicted_image)
+        predicted_image = ImageProcessor.rescale(predicted_image)
 
         # Reverse one hot encode predicted mask
-        predicted_image_decoded = reverse_one_hot_encode(predicted_image)
-        predicted_image_decoded = rescale(predicted_image_decoded)
+        predicted_image_decoded = ImageProcessor.reverse_one_hot_encode(predicted_image)
+        predicted_image_decoded = ImageProcessor.rescale(predicted_image_decoded)
 
         # Predicted
         plt.subplot(4,2,1)
@@ -227,7 +228,7 @@ class Plotter:
         plt.show()
 
     #Sanity check, view few mages
-    def peek_images_test(sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None):
+    def peek_images_test(self, sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None):
         """
         Function to plot a randomly selected testing set
 
@@ -269,7 +270,7 @@ class Plotter:
         predicted_image = model.predict(sample_images)
         predicted_image = predicted_image[0,::,::,::]
         # Reverse one hot encode predicted mask
-        predicted_image_decoded = reverse_one_hot_encode(predicted_image)
+        predicted_image_decoded = ImageProcessor.reverse_one_hot_encode(predicted_image)
 
         if encode == 'uint8':
             if color_scale == 'gray':
@@ -286,7 +287,7 @@ class Plotter:
 
         plt.show()
 
-    def sanity_check(sample_images, sample_masks=None, encode=None, color_scale=None, predict=None, model=None, model_alt=None, predicted_breakdown=None, imsize=None, imsize_alt=None):
+    def sanity_check(self, sample_images, sample_masks=None, encode=None, color_scale=None, predict=None, model=None, model_alt=None, predicted_breakdown=None, imsize=None, imsize_alt=None):
         """
         Function to get a training set (or validation set if given validation filepaths) and calls plotting functions
         
@@ -334,18 +335,18 @@ class Plotter:
 
         # Compare image and mask only
         if predicted_breakdown is None and sample_masks is not None:
-            peek_images(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model)
+            self.peek_images(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model)
         # Compare original image and mask with predicted mask for model 1 or with model 1 and model 2
         elif predicted_breakdown is not None and sample_masks is not None:
-            image1 = preprocessor_images(image1)
-            mask = preprocessor_images(mask)
+            image1 = ImageProcessor.preprocessor_images(image1)
+            mask = ImageProcessor.preprocessor_images(mask)
             if image2 is not None:
-                image2 = preprocessor_images(image2)
-            peek_images(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model, sample_images2=image2, model_alt=model_alt)
-            peek_masks_breakdown(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model)
+                image2 = ImageProcessor.preprocessor_images(image2)
+            self.peek_images(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model, sample_images2=image2, model_alt=model_alt)
+            self.peek_masks_breakdown(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model)
         # Test data, no masks
         elif sample_masks is None:
-            image1 = preprocessor_images(image1)
-            peek_images_test(sample_images=image1, encode=encode, color_scale=color_scale, file_name=file_name, predict=predict, model=model)
+            image1 = ImageProcessor.preprocessor_images(image1)
+            self.peek_images_test(sample_images=image1, encode=encode, color_scale=color_scale, file_name=file_name, predict=predict, model=model)
             # peek_masks_breakdown(sample_images=image, encode=encode, color_scale=color_scale, file_name=file_name, predict=predict, model=model)
 
