@@ -36,13 +36,14 @@ class CustomDataLoader:
         '''
         self.img_folder = img_folder
         self.mask_folder = mask_folder
-        self.batch_size = batch_size
+        # We'll do actual batch size in the dataloader not here, here we set to 1 
+        self.batch_size = 1
         self.imsize = imsize
         self.num_classes = num_classes
         self.first_n = first_n
         self.log_file = log_file
 
-        element_counter = 0 
+        self.element_counter = 0 
 
         self.images_list = os.listdir(self.img_folder) #List of training images
         self.masks_list = os.listdir(self.mask_folder) #List of Mask images
@@ -77,7 +78,24 @@ class CustomDataLoader:
 
         # does preprocessing
 
-        return img, mask
+        # Read an image from folder and resize
+        img_loaded = plt.imread(self.img_folder+'/'+images)
+        img_loaded =  cv2.resize(img_loaded, (self.imsize, self.imsize))
+
+        # Read corresponding mask from folder and resize
+        mask_loaded = plt.imread(self.mask_folder+'/'+masks)
+        mask_loaded = cv2.resize(mask_loaded, (self.imsize, self.imsize))
+
+        #Add pre-processing steps
+        img_mask_processor = ImageProcessor()
+        img_loaded = img_mask_processor.preprocessor_images(img_loaded)
+        mask_loaded = img_mask_processor.preprocessor_masks(mask_loaded)
+
+        img_tensor = torch.from_numpy(img_loaded)
+        mask_tensor = torch.from_numpy(mask_loaded)
+        
+        # returns as a tuple of tensors
+        return img_tensor, mask_tensor
 
     # def data_generator(self, img_folder, mask_folder, batch_size, imsize, num_classes, first_n=None):
     #     """

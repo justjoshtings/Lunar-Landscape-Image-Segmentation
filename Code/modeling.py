@@ -31,8 +31,23 @@ Create dataloader for train, validation, and testing dataset
 train_data = CustomDataLoader(img_folder=train_img_folder, mask_folder=mask_img_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes)
 train_data_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
-print(next(iter(train_data)))
-print(next(iter(train_data_loader)))
+# tuples of 2 tensor arrays
+# Image element is tensor array of size [imsize, imsize, RGB channel]
+# Mask element is tensor array of size [imsize, imsize, class channel]
+sample_data = next(iter(train_data))
+
+# list of len 2 (1 for image, 1 for mask). 
+# Image element in list is torch tensor of size [batch size, imsize, imsize, RGB channel]
+# Mask element in list is torch tensor of size [batch size, imsize, imsize, class channel]
+batch_data = next(iter(train_data_loader))
+
+print(sample_data[0].shape)
+print(sample_data[1].shape)
+
+print(batch_data[0].shape)
+print(batch_data[1].shape)
+
+# NEED TO DO AN IMAGE PLOT CHECK TO SEE IF EVERYTHING LOOKS GOOD OUT OF CUSTOM DATALOADER
 
 '''
 Load Model(s)
