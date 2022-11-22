@@ -14,6 +14,8 @@ import os
 import random
 import cv2
 import copy
+import time
+random.seed(time.perf_counter())
 
 # WILL NEED TO CLEAN THIS WHOLE MESS UP LATER!!!
 
@@ -102,7 +104,8 @@ class Plotter:
             predicted_image = model.predict(sample_images)
             predicted_image = predicted_image[0,::,::,::]
             # Reverse one hot encode predicted mask
-            predicted_image_decoded = ImageProcessor.reverse_one_hot_encode(predicted_image)
+            img_processor = ImageProcessor()
+            predicted_image_decoded = img_processor.reverse_one_hot_encode(predicted_image)
 
             
             if encode == 'uint8':
@@ -129,7 +132,8 @@ class Plotter:
             predicted_image = model_alt.predict(sample_images2)
             predicted_image = predicted_image[0,::,::,::]
             # Reverse one hot encode predicted mask
-            predicted_image_decoded = ImageProcessor.reverse_one_hot_encode(predicted_image)
+            img_processor = ImageProcessor()
+            predicted_image_decoded = img_processor.reverse_one_hot_encode(predicted_image)
 
             plt.subplot(144)
             if encode == 'uint8':
@@ -145,7 +149,12 @@ class Plotter:
             plt.title('Predicted Mask {}:'.format(model_alt.name), fontdict = {'fontsize' : 8})
             plt.axis('off')
 
-        plt.show()
+        if not os.path.exists('./plots/peek_images/'):
+            os.makedirs('./plots/peek_images/')
+
+        plt.savefig(f'./plots/peek_images/{file_name}')
+        # plt.savefig(f'./plots/peek_images/current_test.png')
+        # plt.show()
 
     def peek_masks_breakdown(self, sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None):
         """
@@ -172,14 +181,16 @@ class Plotter:
         if len(sample_images.shape) == 3:
             sample_images = np.expand_dims(sample_images, axis=0)
 
+        img_processor = ImageProcessor()
+
         # Predict image
         predicted_image = model.predict(sample_images)
         predicted_image = predicted_image[0,::,::,::]
-        predicted_image = ImageProcessor.rescale(predicted_image)
+        predicted_image = img_processor.rescale(predicted_image)
 
         # Reverse one hot encode predicted mask
-        predicted_image_decoded = ImageProcessor.reverse_one_hot_encode(predicted_image)
-        predicted_image_decoded = ImageProcessor.rescale(predicted_image_decoded)
+        predicted_image_decoded = img_processor.reverse_one_hot_encode(predicted_image)
+        predicted_image_decoded = img_processor.rescale(predicted_image_decoded)
 
         # Predicted
         plt.subplot(4,2,1)
@@ -270,7 +281,8 @@ class Plotter:
         predicted_image = model.predict(sample_images)
         predicted_image = predicted_image[0,::,::,::]
         # Reverse one hot encode predicted mask
-        predicted_image_decoded = ImageProcessor.reverse_one_hot_encode(predicted_image)
+        img_processor = ImageProcessor()
+        predicted_image_decoded = img_processor.reverse_one_hot_encode(predicted_image)
 
         if encode == 'uint8':
             if color_scale == 'gray':
@@ -333,20 +345,22 @@ class Plotter:
         else:
             image2 = None
 
+        img_processor = ImageProcessor()
+
         # Compare image and mask only
         if predicted_breakdown is None and sample_masks is not None:
             self.peek_images(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model)
         # Compare original image and mask with predicted mask for model 1 or with model 1 and model 2
         elif predicted_breakdown is not None and sample_masks is not None:
-            image1 = ImageProcessor.preprocessor_images(image1)
-            mask = ImageProcessor.preprocessor_images(mask)
+            image1 = img_processor.preprocessor_images(image1)
+            mask = img_processor.preprocessor_images(mask)
             if image2 is not None:
-                image2 = ImageProcessor.preprocessor_images(image2)
+                image2 = img_processor.preprocessor_images(image2)
             self.peek_images(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model, sample_images2=image2, model_alt=model_alt)
             self.peek_masks_breakdown(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model)
         # Test data, no masks
         elif sample_masks is None:
-            image1 = ImageProcessor.preprocessor_images(image1)
+            image1 = img_processor.preprocessor_images(image1)
             self.peek_images_test(sample_images=image1, encode=encode, color_scale=color_scale, file_name=file_name, predict=predict, model=model)
             # peek_masks_breakdown(sample_images=image, encode=encode, color_scale=color_scale, file_name=file_name, predict=predict, model=model)
 
