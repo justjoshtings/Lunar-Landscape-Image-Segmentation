@@ -93,6 +93,10 @@ class CustomDataLoader:
 
         img_tensor = torch.from_numpy(img_loaded)
         mask_tensor = torch.from_numpy(mask_loaded)
+
+        # Change ordering, channels first then img size
+        img_tensor = img_tensor.permute(2, 0, 1)
+        mask_tensor = mask_tensor.permute(2, 0, 1)
         
         # returns as a tuple of tensors
         return img_tensor, mask_tensor

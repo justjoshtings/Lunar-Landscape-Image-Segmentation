@@ -78,10 +78,17 @@ class UNet_scratch(nn.Module):
 
     def forward(self, x):
         enc_ftrs = self.encoder(x)
+        print(len(enc_ftrs))
+        print(enc_ftrs[0].shape)
+        print(enc_ftrs[1].shape)
+        print(enc_ftrs[2].shape)
         out = self.decoder(enc_ftrs[::-1][0], enc_ftrs[::-1][1:])
+        print(out.shape)
         out = self.head(out)
+        print(out.shape)
         if self.retain_dim:
             out = torch.nn.functional.interpolate(out, self.out_sz)
+        print(out.shape)
         return out
 
 class Model:
@@ -98,3 +105,4 @@ class Model:
 
         '''
         self.log_file = log_file
+
