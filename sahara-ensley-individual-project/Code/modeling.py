@@ -6,15 +6,17 @@ author: @saharae, @justjoshtings
 created: 11/17/2022
 """
 
-from LunarModules.ImageProcessor import ImageProcessor
-from LunarModules.CustomDataLoader import CustomDataLoader
-from LunarModules.Plotter import Plotter
-from LunarModules.Model import *
+from ImageProcessor import ImageProcessor
+from CustomDataLoader import CustomDataLoader
+from Model import *
 from torch.utils.data import Dataset, DataLoader
 import os
+import torch
+#from torchmetrics import Dice
+from torch.optim import Adam
 
 CODE_PATH = os.getcwd()
-os.chdir('..')
+os.chdir('../..')
 BASE_PATH = os.getcwd()
 os.chdir(CODE_PATH)
 DATA_PATH = os.path.join(BASE_PATH, 'Data')
@@ -37,12 +39,10 @@ train_data_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 # Mask element is tensor array of size [imsize, imsize, class channel]
 sample_data = next(iter(train_data))
 
-# list of len 2 (1 for image, 1 for mask). 
+# list of len 2 (1 for image, 1 for mask).
 # Image element in list is torch tensor of size [batch size, imsize, imsize, RGB channel]
 # Mask element in list is torch tensor of size [batch size, imsize, imsize, class channel]
 batch_data = next(iter(train_data_loader))
-
-img_processor = ImageProcessor()
 
 print(sample_data[0].shape)
 print(sample_data[1].shape)
@@ -50,23 +50,7 @@ print(sample_data[1].shape)
 print(batch_data[0].shape)
 print(batch_data[1].shape)
 
-sample_image = sample_data[0].numpy()
-sample_mask = sample_data[1].numpy()
-
-sample_mask = img_processor.rescale(sample_mask)
-# Reverse one hot encode predicted mask
-sample_mask_decoded = img_processor.reverse_one_hot_encode(sample_mask)
-sample_mask_decoded = img_processor.rescale(sample_mask_decoded)
-
-check_plotter = Plotter()
-check_plotter.peek_images(sample_images=sample_image,sample_masks=sample_mask,file_name='current_test.png')
-check_plotter.sanity_check(DATA_PATH + '/images/render/' , DATA_PATH + '/images/ground/')
-
 # NEED TO DO AN IMAGE PLOT CHECK TO SEE IF EVERYTHING LOOKS GOOD OUT OF CUSTOM DATALOADER
-    # mask is black and white need to change to RGB or check channels which one is first, and check 
-# NEED TO CHECK PREPROCESSING STEPS - WHAT IS THE SEQUENCE OF STEPS
-# Check endcoding of images in each step
-# Check order of tensors channels first
 
 '''
 Load Model(s)
