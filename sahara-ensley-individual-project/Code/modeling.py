@@ -6,14 +6,17 @@ author: @saharae, @justjoshtings
 created: 11/17/2022
 """
 
-from LunarModules.ImageProcessor import ImageProcessor
-from LunarModules.CustomDataLoader import CustomDataLoader
-from LunarModules.Model import *
+from ImageProcessor import ImageProcessor
+from CustomDataLoader import CustomDataLoader
+from Model import *
 from torch.utils.data import Dataset, DataLoader
 import os
+import torch
+#from torchmetrics import Dice
+from torch.optim import Adam
 
 CODE_PATH = os.getcwd()
-os.chdir('..')
+os.chdir('../..')
 BASE_PATH = os.getcwd()
 os.chdir(CODE_PATH)
 DATA_PATH = os.path.join(BASE_PATH, 'Data')
@@ -36,7 +39,7 @@ train_data_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 # Mask element is tensor array of size [imsize, imsize, class channel]
 sample_data = next(iter(train_data))
 
-# list of len 2 (1 for image, 1 for mask). 
+# list of len 2 (1 for image, 1 for mask).
 # Image element in list is torch tensor of size [batch size, imsize, imsize, RGB channel]
 # Mask element in list is torch tensor of size [batch size, imsize, imsize, class channel]
 batch_data = next(iter(train_data_loader))
