@@ -115,6 +115,12 @@ class Model:
         self.name = name
         self.loss = loss
         self.opt = opt
+        self.history = {
+            "train_loss":[],
+            "val_loss":[],
+            "train_iou":[],
+            "val_iou":[]
+        }
 
     def run_training(self, n_epochs, device):
         num_training_steps = n_epochs * len(self.train_data_loader)
@@ -123,10 +129,7 @@ class Model:
         lr_scheduler = get_scheduler(name = "linear", optimizer = self.opt, num_warmup_steps = 0, num_training_steps = num_training_steps)
         total_t0 = time.time()
         sample_every = 100
-        self.history = {
-            "train_loss":[],
-            "val_loss":[]
-        }
+
 
         for e in range(n_epochs):
             running_train_loss = 0
@@ -146,7 +149,7 @@ class Model:
 
                 loss = self.loss(pred, y_train.float())
                 running_train_loss += loss.item()
-                running_train_iou += self.IoU(pred, y_train.float())
+                #running_train_iou += self.IoU(pred, y_train.float())
 
                 # print(pred, loss)
                 # opt.zero_grad()
@@ -156,7 +159,7 @@ class Model:
                 progress_bar.update(1)
 
             self.history["train_loss"].append((running_train_loss/len(self.train_data_loader)))
-            self.history["train_iou"].append((running_train_iou / len(self.train_data_loader)))
+            #self.history["train_iou"].append((running_train_iou / len(self.train_data_loader)))
 
             self.model.eval()
             with torch.no_grad():
@@ -164,33 +167,39 @@ class Model:
                     x_val, y_val = batch[0].to(device), batch[1].to(device)
                     y_val_pred = self.model(x_val)
                     loss = self.loss(y_val_pred, y_val.float())
-                    running_val_iou += self.IoU(y_val_pred, y_val.float())
+                    #running_val_iou += self.IoU(y_val_pred, y_val.float())
                     running_val_loss += loss.item()
             self.history['val_loss'].append((running_val_loss/len(self.val_data_loader)))
-            self.history['val_iou'].append((running_val_iou/len(self.val_data_loader)))
+            #self.history['val_iou'].append((running_val_iou/len(self.val_data_loader)))
 
-            print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, train_iou {self.history['train_iou'][-1]}, val_loss {self.history['val_loss'][-1]}, val_iou {self.history['val_iou'][-1]}")
-
+            #print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, train_iou {self.history['train_iou'][-1]}, val_loss {self.history['val_loss'][-1]}, val_iou {self.history['val_iou'][-1]}")
+            print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, val_loss {self.history['val_loss'][-1]}")
             # Measure how long this epoch took.
             print("")
             training_time = str(dt.timedelta(seconds = int(round((time.time() - t0)))))
             print(f"Training epoch took: {training_time}")
 
     def plot_train(self, save_loc):
-        fig, ax = plt.subplots(nrows = 0, ncols = 0, figsize = (8,8))
-        ax.plot(self.history['train_loss'], color = "slate_grey", label = "Training Loss")
-        ax.plot(self.history['val_loss'], color = "seagreen", label = "Training Loss")
-        ax.legend()
-        ax.title(f'MODEL: {self.name} training loop results')
+        fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8,8))
+        axes[0].plot(self.history['train_loss'], color = "slate_grey", label = "Training Loss")
+        axes[0].plot(self.history['val_loss'], color = "seagreen", label = "Training Loss")
+        axes[0].legend()
+        axes[0].title(f'MODEL: {self.name} LOSS')
+
+        # axes[1].plot(self.history['train_iou'], color = "slate_grey", label = "Training IoU")
+        # axes[1].plot(self.history['val_iou'], color = "seagreen", label = "Training IoU")
+        # axes[1].legend()
+        # axes[1].title(f'MODEL: {self.name} IoU')
         sns.despine()
         fig.save(os.path.join(save_loc, f'{self.name}_training_curves'))
 
     def IoU(self, y_pred, labels):
         y_pred = y_pred.squeeze(1)
-
+        y_pred = y_pred.float().cpu().detach().numpy()
+        labels = labels.float().cpu().detach().numpy()
         intersection = (y_pred & labels).sum((1,2))
         union = (y_pred | labels).sum((1,2))
         iou = (intersection + 1e-6) / (union + 1e-6) # to avoid divide by 0 error
-        thresholded = np.ceil(np.clip(20*(iou-0.5), 0, 10))/10
-
+        #thresholded = torch.clamp(20*(iou-0.5),0,10).ceil()/10
+        thresholded = np.ceil(np.clip(20 * (iou - 0.5), 0, 10)) / 10
         return thresholded
