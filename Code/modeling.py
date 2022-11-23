@@ -26,6 +26,10 @@ BASE_PATH = os.getcwd()
 os.chdir(CODE_PATH)
 DATA_PATH = os.path.join(BASE_PATH, 'Data')
 
+RESULT_PATH = os.path.join(BASE_PATH, 'Results')
+
+if not os.path.exists(RESULT_PATH):
+    os.mkdir(RESULT_PATH)
 '''
 Set parameters
 '''
@@ -98,64 +102,40 @@ print(sample_mask_decoded.shape)
 # '''
 # Load Model(s)
 # '''
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# print('Using device..', device)
-# torch.manual_seed(42)
-# np.random.seed(42)
-# torch.backends.cudnn.deterministic = True
-# torch.backends.cudnn.benchmark = False
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print('Using device..', device)
+torch.manual_seed(42)
+np.random.seed(42)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
-# model = UNet_scratch().to(device)
+model = UNet_scratch().to(device)
 
 
 # '''
 # Train
 # '''
-# n_epochs = 10
-# lossBCE = torch.nn.BCEWithLogitsLoss()
-# opt = AdamW(model.parameters(), lr = 0.01)
+n_epochs = 10
+lossBCE = torch.nn.BCEWithLogitsLoss()
+opt = AdamW(model.parameters(), lr = 0.01)
 
-# num_training_steps = n_epochs * len(train_data_loader)
-# print(num_training_steps, 'steps!!')
-# lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
-# progress_bar = tqdm(range(num_training_steps))
-# total_t0 = time.time()
-# sample_every = 100
+num_training_steps = n_epochs * len(train_data_loader)
+print(num_training_steps, 'steps!!')
+lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
+progress_bar = tqdm(range(num_training_steps))
+total_t0 = time.time()
+sample_every = 100
 
 
-# print('training')
+print('training')
 
-# gc.collect()
-# torch.cuda.empty_cache()
+gc.collect()
+torch.cuda.empty_cache()
 
-# for e in range(n_epochs):
-#     t0 = time.time()
-#     model.train()
+model = Model(model, loss = lossBCE, opt = opt, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, name = "Initial_model", log_file=None)
 
-#     # for i in range(batch_data[0].shape[0]):
-#     for step, batch in enumerate(train_data_loader):
-#         print(batch[0].shape)
-#         print(batch[1].shape)
-#         x_train, y_train = batch[0].to(device), batch[1].to(device)
-#         model.zero_grad() 
-#         pred = model(x_train)
-#         print(pred.shape)
-#         loss = lossBCE(pred, y_train)
-
-#         print(pred, loss)
-
-#         # opt.zero_grad()
-#         loss.backward()
-#         opt.step()
-#         lr_scheduler.step()
-#         progress_bar.update(1)
-
-#         print(f'testing functionality: loss is sorta {loss}')
-
-#     # Measure how long this epoch took.
-#     print("")
-#     training_time = str(dt.timedelta(seconds=int(round((time.time() - t0)))))
-#     print(f"Training epoch took: {training_time}")
+model.run_training(n_epochs = n_epochs, device = device)
+model.plot_train(save_loc = RESULT_PATH)
 
 # '''
 # Validation Loop
