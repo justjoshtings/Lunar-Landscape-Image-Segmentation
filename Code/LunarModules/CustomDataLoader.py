@@ -14,6 +14,7 @@ import random
 import cv2
 import copy
 from LunarModules.ImageProcessor import ImageProcessor
+from LunarModules.Plotter import Plotter
 import torch, gc
 from torch.utils.data import Dataset, DataLoader
 
@@ -79,6 +80,8 @@ class CustomDataLoader:
         # does preprocessing
 
         # Read an image from folder and resize
+        # plt.imread() loads as (imsize, imsize, channels)
+        # Original image and mask seems to be 480x720x3
         img_loaded = plt.imread(self.img_folder+'/'+images)
         img_loaded =  cv2.resize(img_loaded, (self.imsize, self.imsize))
 
@@ -86,10 +89,34 @@ class CustomDataLoader:
         mask_loaded = plt.imread(self.mask_folder+'/'+masks)
         mask_loaded = cv2.resize(mask_loaded, (self.imsize, self.imsize))
 
-        #Add pre-processing steps
+
+        # plt.imread() Loads as value between 0 and 1, cv2.imread() loads values between 0-255
+        # test= cv2.imread(self.img_folder+'/'+images)
+        # test_mask = cv2.imread(self.mask_folder+'/'+masks)
+        # print('Image Max/Min Val: ', np.max(img_loaded), np.min(img_loaded))
+        # print('Mask Max/Min Val: ', np.max(mask_loaded), np.min(mask_loaded))
+        # print('Image CV2 Max/Min Val: ', np.max(test), np.min(test))
+        # print('Mask CV2 Max/Min Val: ', np.max(test_mask), np.min(test_mask))
+        # print(test.shape, test_mask.shape)
+
         img_mask_processor = ImageProcessor()
+        check_plotter = Plotter()
+
+        #Data Augmentation steps
+        img_loaded, mask_loaded = img_mask_processor.data_augmentation(img_loaded, mask_loaded)
+
+        check_plotter.peek_images(sample_images=img_loaded,sample_masks=mask_loaded,file_name='current_test_2.png')
+
+        #Pre-processing steps
         img_loaded = img_mask_processor.preprocessor_images(img_loaded)
         mask_loaded = img_mask_processor.preprocessor_masks(mask_loaded)
+
+        # Check and save images as plots
+        sample_mask = img_mask_processor.rescale(mask_loaded)
+        # Reverse one hot encode predicted mask
+        sample_mask_decoded = img_mask_processor.reverse_one_hot_encode(sample_mask)
+        sample_mask_decoded = img_mask_processor.rescale(sample_mask_decoded)
+        check_plotter.peek_images(sample_images=img_loaded,sample_masks=sample_mask_decoded,file_name='current_test.png')
 
         img_tensor = torch.from_numpy(img_loaded)
         mask_tensor = torch.from_numpy(mask_loaded)
