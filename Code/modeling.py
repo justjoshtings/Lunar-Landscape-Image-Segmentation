@@ -55,45 +55,46 @@ test_data_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 '''
 Review and Check Preprocessing and DataLoader outputs are correctly performed
 '''
-# tuples of 2 tensor arrays
-# Image element is tensor array of size [RGB channel, imsize, imsize]
-# Mask element is tensor array of size [class channel, imsize, imsize]
-sample_data = next(iter(train_data))
+def do_preprocessing_checks():
+    # Check endcoding of images in each step
 
-# list of len 2 (1 for image, 1 for mask). 
-# Image element in list is torch tensor of size [batch size, RGB channel, imsize, imsize]
-# Mask element in list is torch tensor of size [batch size, class channel, imsize, imsize]
-batch_data = next(iter(train_data_loader))
+    # tuples of 2 tensor arrays
+    # Image element is tensor array of size [RGB channel, imsize, imsize]
+    # Mask element is tensor array of size [class channel, imsize, imsize]
+    sample_data = next(iter(train_data))
 
-img_processor = ImageProcessor()
+    # list of len 2 (1 for image, 1 for mask). 
+    # Image element in list is torch tensor of size [batch size, RGB channel, imsize, imsize]
+    # Mask element in list is torch tensor of size [batch size, class channel, imsize, imsize]
+    batch_data = next(iter(train_data_loader))
 
-print(sample_data[0].shape)
-print(sample_data[1].shape)
+    img_processor = ImageProcessor()
 
-print(batch_data[0].shape)
-print(batch_data[1].shape)
+    print(sample_data[0].shape)
+    print(sample_data[1].shape)
 
-# Reorder images for plotting
-sample_image = sample_data[0].permute(1,2,0)
-sample_mask = sample_data[1].permute(1,2,0)
-sample_image = sample_image.numpy()
-sample_mask = sample_mask.numpy()
+    print(batch_data[0].shape)
+    print(batch_data[1].shape)
 
-sample_mask = img_processor.rescale(sample_mask)
-# Reverse one hot encode predicted mask
-sample_mask_decoded = img_processor.reverse_one_hot_encode(sample_mask)
-sample_mask_decoded = img_processor.rescale(sample_mask_decoded)
+    # Reorder images for plotting
+    sample_image = sample_data[0].permute(1,2,0)
+    sample_mask = sample_data[1].permute(1,2,0)
+    sample_image = sample_image.numpy()
+    sample_mask = sample_mask.numpy()
 
-# Plot images to ensure correct processing steps
-check_plotter = Plotter()
-check_plotter.peek_images(sample_images=sample_image,sample_masks=sample_mask_decoded,file_name='current_test.png')
-check_plotter.sanity_check(train_img_folder+'/' , train_mask_folder+'/')
+    sample_mask = img_processor.rescale(sample_mask)
+    # Reverse one hot encode predicted mask
+    sample_mask_decoded = img_processor.reverse_one_hot_encode(sample_mask)
+    sample_mask_decoded = img_processor.rescale(sample_mask_decoded)
 
-print(sample_mask_decoded.shape)
+    # Plot images to ensure correct processing steps
+    check_plotter = Plotter()
+    check_plotter.peek_images(sample_images=sample_image,sample_masks=sample_mask_decoded,file_name='current_test.png')
+    check_plotter.sanity_check(train_img_folder+'/' , train_mask_folder+'/')
 
-# NEED TO CHECK PREPROCESSING STEPS - WHAT IS THE SEQUENCE OF STEPS
-# Check endcoding of images in each step
-# Check max and min values for img and masks before processing
+    print(sample_mask_decoded.shape)
+
+# do_preprocessing_checks()
 
 # '''
 # Load Model(s)

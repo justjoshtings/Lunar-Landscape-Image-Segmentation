@@ -13,8 +13,12 @@ import os
 import random
 import cv2
 import copy
+import torchvision.transforms as T
+import torchvision.transforms.functional as TF
+import torch
+from PIL import Image
+from matplotlib import cm
 
-# WILL NEED TO CLEAN THIS WHOLE MESS UP LATER!!!
 
 class ImageProcessor:
     '''
@@ -29,7 +33,8 @@ class ImageProcessor:
         '''
     def binarize(self, img, threshold=128):
         """
-        Function to binarize images at some threshold pixel value
+        Function to binarize images at some threshold pixel value.
+        Set to 0 or 255.
 
         Parameters:
         img: image in numpy matrix
@@ -167,6 +172,54 @@ class ImageProcessor:
 
         return rgb_img
 
+    def data_augmentation(self, image, mask):
+        '''
+        Function to perform data augmentation
+        
+        Parameters:
+            image: image in numpy (x,y,3)
+            mask: ground truth mask in numpy (x,y,3)
+        
+        Returns:
+            
+
+        Image Only:
+            - Color jitters: hue/contrast/brightness
+
+        Both Image and Mask:
+            - Random horizontal and vertical flips
+        '''
+        pil_image = Image.fromarray((image * 255).astype(np.uint8))
+        pil_mask = Image.fromarray((mask * 255).astype(np.uint8))
+
+        # 1. Image and Mask:
+        # 1A. VerticalFlip
+        if random.random() > 0.2:
+            pil_image = TF.vflip(pil_image)
+            pil_mask  = TF.vflip(pil_mask)
+        
+        # 1B. Horitonal Flifp
+        if random.random() > 0.2:
+            pil_image = TF.hflip(pil_image)
+            pil_mask  = TF.hflip(pil_mask)
+
+        # 1C. Horitonal Flifp
+        if random.random() > 0.2:
+            pil_image = TF.hflip(pil_image)
+            pil_mask  = TF.hflip(pil_mask)
+
+        # 2. Image Only
+        transform_img = RandomChoice([
+                    T.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5)
+                ])
+
+        pil_image, = transform_img([pil_image,])
+
+        img = np.asarray(pil_image)/255
+        msk = np.asarray(pil_mask)/255
+
+        return img, msk
+
     def preprocessor_images(self, image, b_threshold=128):
         """
         Function to combine preprocessing steps to feed into ImageDataGenerator.
@@ -203,4 +256,11 @@ class ImageProcessor:
 
         return final_img
 
-                        
+class RandomChoice(torch.nn.Module):
+    def __init__(self, transforms):
+       super().__init__()
+       self.transforms = transforms
+
+    def __call__(self, imgs):
+        t = random.choice(self.transforms)
+        return [t(img) for img in imgs]
