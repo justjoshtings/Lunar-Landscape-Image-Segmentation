@@ -124,6 +124,7 @@ class CustomDataLoader:
         # Change ordering, channels first then img size
         img_tensor = img_tensor.permute(2, 0, 1)
         mask_tensor = mask_tensor.permute(2, 0, 1)
-        
+
+        plt.close('all')
         # returns as a tuple of tensors
         return img_tensor, mask_tensor

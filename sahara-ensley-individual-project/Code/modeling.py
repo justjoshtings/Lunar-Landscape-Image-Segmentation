@@ -132,7 +132,7 @@ print('training')
 gc.collect()
 torch.cuda.empty_cache()
 
-model = Model(model, loss = lossBCE, opt = opt, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, name = "Initial_model", log_file=None)
+model = Model(model, loss = lossBCE, opt = opt, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader,device = device, name = "Initial_model", log_file=None)
 
 model.run_training(n_epochs = n_epochs, device = device)
 model.plot_train(save_loc = RESULT_PATH)

@@ -19,6 +19,7 @@ import time
 import datetime as dt
 from transformers import get_scheduler
 from tqdm.auto import tqdm
+from torchmetrics import JaccardIndex
 
 
 # WILL NEED TO CLEAN THIS WHOLE MESS UP LATER!!!
@@ -99,7 +100,7 @@ class Model:
     '''
 
     ## NEED TO ADD THIS
-    def __init__(self, model, loss, opt, random_seed, train_data_loader, val_data_loader, test_data_loader, name = None, log_file=None):
+    def __init__(self, model, loss, opt, random_seed, train_data_loader, val_data_loader, test_data_loader, device, name = None, log_file=None):
         '''
         Params:
             self: instance of object
@@ -107,7 +108,7 @@ class Model:
 
         '''
         self.log_file = log_file
-        self.model = model
+        self.model = model.to(device)
         self.random_seed = random_seed
         self.train_data_loader = train_data_loader
         self.val_data_loader = val_data_loader
@@ -121,6 +122,7 @@ class Model:
             "train_iou":[],
             "val_iou":[]
         }
+        self.metric = JaccardIndex(num_classes = 4)
 
     def run_training(self, n_epochs, device):
         num_training_steps = n_epochs * len(self.train_data_loader)
@@ -143,37 +145,43 @@ class Model:
                 # print(batch[0].shape)
                 # print(batch[1].shape)
                 x_train, y_train = batch[0].to(device), batch[1].to(device)
+                x_train.requires_grad = True
+
                 self.model.zero_grad()
-                pred = self.model(x_train)
-                # print(pred.shape)
+                pred = self.model(x_train.float())
+                pred_soft = torch.softmax(pred, dim = 1)
+                pred_argmax = torch.argmax(pred_soft, dim = 1)
 
                 loss = self.loss(pred, y_train.float())
                 running_train_loss += loss.item()
                 #running_train_iou += self.IoU(pred, y_train.float())
+                running_train_iou += self.metric(pred_argmax.cpu(), torch.argmax(torch.softmax(y_train.float(), dim = 1), dim = 1).cpu())
 
                 # print(pred, loss)
-                # opt.zero_grad()
+                self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
                 lr_scheduler.step()
                 progress_bar.update(1)
 
             self.history["train_loss"].append((running_train_loss/len(self.train_data_loader)))
-            #self.history["train_iou"].append((running_train_iou / len(self.train_data_loader)))
+            self.history["train_iou"].append((running_train_iou / len(self.train_data_loader)))
 
             self.model.eval()
             with torch.no_grad():
                 for step, batch in enumerate(self.val_data_loader):
                     x_val, y_val = batch[0].to(device), batch[1].to(device)
-                    y_val_pred = self.model(x_val)
+                    y_val_pred = self.model(x_val.float())
                     loss = self.loss(y_val_pred, y_val.float())
                     #running_val_iou += self.IoU(y_val_pred, y_val.float())
+                    running_val_iou += self.metric(torch.argmax(torch.softmax(y_val_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(torch.softmax(y_val.float(), dim = 1), dim = 1).cpu())
                     running_val_loss += loss.item()
-            self.history['val_loss'].append((running_val_loss/len(self.val_data_loader)))
-            #self.history['val_iou'].append((running_val_iou/len(self.val_data_loader)))
 
-            #print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, train_iou {self.history['train_iou'][-1]}, val_loss {self.history['val_loss'][-1]}, val_iou {self.history['val_iou'][-1]}")
-            print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, val_loss {self.history['val_loss'][-1]}")
+            self.history['val_loss'].append((running_val_loss/len(self.val_data_loader)))
+            self.history['val_iou'].append((running_val_iou/len(self.val_data_loader)))
+
+            print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, train_iou {self.history['train_iou'][-1]}, val_loss {self.history['val_loss'][-1]}, val_iou {self.history['val_iou'][-1]}")
+            #print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, val_loss {self.history['val_loss'][-1]}")
             # Measure how long this epoch took.
             print("")
             training_time = str(dt.timedelta(seconds = int(round((time.time() - t0)))))
@@ -181,15 +189,15 @@ class Model:
 
     def plot_train(self, save_loc):
         fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8,8))
-        axes[0].plot(self.history['train_loss'], color = "slate_grey", label = "Training Loss")
+        axes[0].plot(self.history['train_loss'], color = "slategrey", label = "Training Loss")
         axes[0].plot(self.history['val_loss'], color = "seagreen", label = "Training Loss")
         axes[0].legend()
         axes[0].title(f'MODEL: {self.name} LOSS')
 
-        # axes[1].plot(self.history['train_iou'], color = "slate_grey", label = "Training IoU")
-        # axes[1].plot(self.history['val_iou'], color = "seagreen", label = "Training IoU")
-        # axes[1].legend()
-        # axes[1].title(f'MODEL: {self.name} IoU')
+        axes[1].plot(self.history['train_iou'], color = "slategrey", label = "Training IoU")
+        axes[1].plot(self.history['val_iou'], color = "seagreen", label = "Training IoU")
+        axes[1].legend()
+        axes[1].title(f'MODEL: {self.name} IoU')
         sns.despine()
         fig.save(os.path.join(save_loc, f'{self.name}_training_curves'))
 

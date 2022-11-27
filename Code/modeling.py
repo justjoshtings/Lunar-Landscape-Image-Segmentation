@@ -110,15 +110,15 @@ np.random.seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-model = UNet_scratch().to(device)
+Unet = UNet_scratch().to(device)
 
 
 # '''
 # Train
 # '''
-n_epochs = 10
+n_epochs = 3
 lossBCE = torch.nn.BCEWithLogitsLoss()
-opt = AdamW(model.parameters(), lr = 0.01)
+opt = AdamW(Unet.parameters(), lr = 0.01)
 
 num_training_steps = n_epochs * len(train_data_loader)
 print(num_training_steps, 'steps!!')
@@ -133,7 +133,7 @@ print('training')
 gc.collect()
 torch.cuda.empty_cache()
 
-model = Model(model, loss = lossBCE, opt = opt, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, name = "Initial_model", log_file=None)
+model = Model(Unet, loss = lossBCE, opt = opt, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, name = "Initial_model", log_file=None)
 
 model.run_training(n_epochs = n_epochs, device = device)
 model.plot_train(save_loc = RESULT_PATH)
