@@ -19,6 +19,8 @@ from tqdm.auto import tqdm
 import time
 from datetime import datetime
 import datetime as dt
+from torchmetrics import JaccardIndex
+from torchmetrics import Dice
 
 CODE_PATH = os.getcwd()
 os.chdir('..')
@@ -40,7 +42,7 @@ val_mask_folder = DATA_PATH + '/images/val/mask'
 test_img_folder = DATA_PATH + '/images/test/render'
 test_mask_folder = DATA_PATH + '/images/test/mask'
 
-batch_size = 8
+batch_size = 32
 imsize = 256
 num_classes = 4
 
@@ -116,9 +118,10 @@ Unet = UNet_scratch().to(device)
 # '''
 # Train
 # '''
-n_epochs = 3
+n_epochs = 10
 lossBCE = torch.nn.BCEWithLogitsLoss()
 opt = AdamW(Unet.parameters(), lr = 0.01)
+metric = Dice(num_classes = 4)
 
 num_training_steps = n_epochs * len(train_data_loader)
 print(num_training_steps, 'steps!!')
@@ -133,7 +136,7 @@ print('training')
 gc.collect()
 torch.cuda.empty_cache()
 
-model = Model(Unet, loss = lossBCE, opt = opt, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, name = "Initial_model", log_file=None)
+model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, name = "Initial_model", log_file=None)
 
 model.run_training(n_epochs = n_epochs, device = device)
 model.plot_train(save_loc = RESULT_PATH)
