@@ -41,6 +41,8 @@ val_img_folder = DATA_PATH + '/images/val/render'
 val_mask_folder = DATA_PATH + '/images/val/mask'
 test_img_folder = DATA_PATH + '/images/test/render'
 test_mask_folder = DATA_PATH + '/images/test/mask'
+real_test_img_folder = DATA_PATH + '/images/real/real_img'
+real_test_mask_folder = DATA_PATH + '/images/real/real_mask'
 
 batch_size = 32
 imsize = 256
@@ -98,9 +100,13 @@ def do_preprocessing_checks():
     check_plotter.peek_images(sample_images=sample_image,sample_masks=sample_mask_decoded,file_name='current_test.png')
     check_plotter.sanity_check(train_img_folder+'/' , train_mask_folder+'/')
 
+    # Plot real images
+    check_plotter.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/')
+
     print(sample_mask_decoded.shape)
 
 # do_preprocessing_checks()
+
 
 # '''
 # Load Model(s)

@@ -55,6 +55,33 @@ def move_data(data, split, source, DATA_PATH):
         dst = os.path.join(final_path, 'mask', msk)
         shutil.copy2(src, dst)
 
+def move_real_test_images(DATA_PATH):
+    source_path = os.path.join(DATA_PATH, 'real_moon_images')
+    final_path = os.path.join(DATA_PATH, 'images', 'real')
+    if not os.path.exists(os.path.join(final_path, 'real_img')):
+        os.makedirs(os.path.join(final_path, 'real_img'))
+    if not os.path.exists(os.path.join(final_path, 'real_mask')):
+        os.makedirs(os.path.join(final_path, 'real_mask'))
+
+    list_real_images = os.listdir(source_path)
+    list_real_images = [item for item in list_real_images if '.png' in item]
+
+    list_real_masks = [item for item in list_real_images if item.startswith('g_')]
+    list_real_images = [item for item in list_real_images if not item.startswith('g_')]
+
+    # print(list_real_images, len(list_real_images))
+    # print(list_real_masks, len(list_real_masks))
+
+    for img in list_real_images:
+        src = os.path.join(source_path, img)
+        dst = os.path.join(final_path, 'real_img', img)
+        shutil.copy2(src, dst)
+    for msk in list_real_masks:
+        src = os.path.join(source_path, msk)
+        dst = os.path.join(final_path, 'real_mask', msk)
+        shutil.copy2(src, dst)
+    
+
 def run(SOURCE = 'clean', RESPLIT = False):
     '''
     main function that splits and copies data into correct folders
@@ -72,9 +99,22 @@ def run(SOURCE = 'clean', RESPLIT = False):
         if len(files) == 0:
             print('------- THERE ARE NO FILES IN RENDER\n------- Resplitting will delete the data. Move everything back to their original directories and run again.')
         print('removing directories to RESPLIT ...')
-        shutil.rmtree(os.path.join(DATA_PATH, 'images', 'train'))
-        shutil.rmtree(os.path.join(DATA_PATH, 'images', 'test'))
-        shutil.rmtree(os.path.join(DATA_PATH, 'images', 'val'))
+        try:
+            shutil.rmtree(os.path.join(DATA_PATH, 'images', 'train'))
+        except FileNotFoundError:
+            pass
+        try:
+            shutil.rmtree(os.path.join(DATA_PATH, 'images', 'test'))
+        except FileNotFoundError:
+            pass
+        try:
+            shutil.rmtree(os.path.join(DATA_PATH, 'images', 'val'))
+        except FileNotFoundError:
+            pass
+        try:
+            shutil.rmtree(os.path.join(DATA_PATH, 'images', 'real'))
+        except FileNotFoundError:
+            pass
 
     if os.path.exists(os.path.join(DATA_PATH, 'images', 'train')):
         print('Data already split ... skipping')
@@ -83,12 +123,16 @@ def run(SOURCE = 'clean', RESPLIT = False):
         data = get_data(DATA_PATH, SOURCE)
         train, test = train_test_split(data, test_size = 0.3, random_state = 42)
         train, val = train_test_split(train, test_size = 0.3, random_state = 42)
+
         print('moving train ...')
         move_data(data = train, split = 'train', source = SOURCE, DATA_PATH = DATA_PATH)
         print('moving val ...')
         move_data(data = val, split = 'val', source = SOURCE, DATA_PATH = DATA_PATH)
         print('moving test ...')
         move_data(data = test, split = 'test', source = SOURCE, DATA_PATH = DATA_PATH)
+        print('moving real moon images ...')
+        move_real_test_images(DATA_PATH)
+    
     print('done')
 
 if __name__ == '__main__':
