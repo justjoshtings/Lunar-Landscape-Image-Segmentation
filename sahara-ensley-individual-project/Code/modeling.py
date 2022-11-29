@@ -109,7 +109,7 @@ np.random.seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-model = UNet_scratch().to(device)
+Unet = UNet_scratch().to(device)
 
 
 # '''
@@ -117,7 +117,8 @@ model = UNet_scratch().to(device)
 # '''
 n_epochs = 10
 lossBCE = torch.nn.BCEWithLogitsLoss()
-opt = AdamW(model.parameters(), lr = 0.01)
+opt = AdamW(Unet.parameters(), lr = 0.01)
+metric = Dice(num_classes = 4)
 
 num_training_steps = n_epochs * len(train_data_loader)
 print(num_training_steps, 'steps!!')
@@ -132,10 +133,17 @@ print('training')
 gc.collect()
 torch.cuda.empty_cache()
 
-model = Model(model, loss = lossBCE, opt = opt, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader,device = device, name = "Initial_model", log_file=None)
+# model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Initial_model", log_file=None)
+#
+# model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+# model.plot_train(save_loc = RESULT_PATH)
 
-model.run_training(n_epochs = n_epochs, device = device)
+model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_noaugment_old", log_file=None)
+print(f'Training: {model.name}')
+
+model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
 model.plot_train(save_loc = RESULT_PATH)
+
 
 # '''
 # Validation Loop

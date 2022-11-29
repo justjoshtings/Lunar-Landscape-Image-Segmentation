@@ -101,7 +101,7 @@ class Model:
     '''
 
     ## NEED TO ADD THIS
-    def __init__(self, model, loss, opt, metric, random_seed, train_data_loader, val_data_loader, test_data_loader, device, name = None, log_file=None):
+    def __init__(self, model, loss, opt, metric, random_seed, train_data_loader, val_data_loader, test_data_loader, device, base_loc = None, name = None, log_file=None):
         '''
         Params:
             self: instance of object
@@ -124,14 +124,19 @@ class Model:
             "val_iou":[]
         }
         self.metric = metric
+        self.base_loc = base_loc
 
-    def run_training(self, n_epochs, device):
+    def run_training(self, n_epochs, device, save_every = 2, load = False):
         num_training_steps = n_epochs * len(self.train_data_loader)
         progress_bar = tqdm(range(num_training_steps))
-
         lr_scheduler = get_scheduler(name = "linear", optimizer = self.opt, num_warmup_steps = 0, num_training_steps = num_training_steps)
 
-        for e in range(n_epochs):
+        if load:
+            last_e = self.load_latest_model(device)
+        else:
+            last_e = 0
+
+        for e in range(last_e, n_epochs):
             running_train_loss = 0
             running_val_loss = 0
             running_train_iou = 0
@@ -186,6 +191,9 @@ class Model:
             training_time = str(dt.timedelta(seconds = int(round((time.time() - t0)))))
             print(f"Training epoch took: {training_time}")
 
+            if e % save_every == 0:
+                self.save_model(e)
+
     def plot_train(self, save_loc):
         fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8,8))
         axes[0].plot(self.history['train_loss'], color = "slategrey", label = "Training Loss")
@@ -199,6 +207,32 @@ class Model:
         axes[1].title(f'MODEL: {self.name} IoU')
         sns.despine()
         fig.save(os.path.join(save_loc, f'{self.name}_training_curves'))
+
+    def save_model(self, epoch):
+        save_loc = os.path.join(self.base_loc, 'Models')
+        if not os.path.exists(save_loc):
+            print('Making Model Dir')
+            os.mkdir(save_loc)
+        torch.save(self.model.state_dict(), os.path.join(save_loc, f"model_{self.name}_EP{epoch}.pt"))
+        print('saving model ...')
+
+    def load_latest_model(self, device):
+        model_loc = os.path.join(self.base_loc, 'Models')
+        if not os.path.exists(model_loc):
+            print('Model folder doesnt exist, skipping loading...')
+            return 0
+        models = [x for x in os.listdir(model_loc) if '.pt' in x and self.name in x]
+        if len(models) == 0:
+            print('No models saved to load')
+            return 0
+        else:
+            saved_iterations = sorted([int(x[x.find('EP')+2:x.find('.pt')]) for x in models])
+            latest_model = f'model_{self.name}_EP{saved_iterations[-1]}.pt'
+            print(f"Latest Model Saved: {latest_model}")
+            model_file = os.path.join(model_loc, latest_model)
+            self.model.load_state_dict(torch.load(model_file, map_location = device))
+            print("Model Loaded!")
+            return saved_iterations[-1]
 
     def IoU(self, y_pred, labels):
         '''
