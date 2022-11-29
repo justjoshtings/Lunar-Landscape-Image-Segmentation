@@ -60,6 +60,9 @@ val_data_loader = DataLoader(val_data, batch_size=batch_size, shuffle=True)
 test_data = CustomDataLoader(img_folder=test_img_folder, mask_folder=test_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes)
 test_data_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 
+real_test_data = CustomDataLoader(img_folder=real_test_img_folder, mask_folder=real_test_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes)
+real_test_data_loader = DataLoader(real_test_data, batch_size=batch_size, shuffle=True)
+
 '''
 Review and Check Preprocessing and DataLoader outputs are correctly performed
 '''
