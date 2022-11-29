@@ -19,6 +19,8 @@ from tqdm.auto import tqdm
 import time
 from datetime import datetime
 import datetime as dt
+from torchvision import models
+
 
 CODE_PATH = os.getcwd()
 os.chdir('../..')
@@ -99,6 +101,25 @@ img_processor = ImageProcessor()
 # Check endcoding of images in each step
 # Check max and min values for img and masks before processing
 
+def update_results(model, RESULTS, BASE_PATH):
+    for epoch, val in enumerate(model.history['train_loss']):
+        RESULTS.append([model.name, epoch, 'train_loss', val])
+    for epoch, val in enumerate(model.history['val_loss']):
+        RESULTS.append([model.name, epoch, 'val_loss', val])
+    for epoch, val in enumerate(model.history['train_iou']):
+        RESULTS.append([model.name, epoch, 'train_iou', val])
+    for epoch, val in enumerate(model.history['val_iou']):
+        RESULTS.append([model.name, epoch, 'val_iou', val])
+
+    if os.path.exists(os.path.join(BASE_PATH, 'RESULTS.csv')):
+        current_results = pd.read_csv(os.path.join(BASE_PATH, 'RESULTS.csv'))
+    else:
+        current_results = pd.DataFrame(columns = ['model_name', 'epoch', 'metric', 'value'])
+
+    to_save = pd.concat([current_results, RESULTS])
+    to_save.to_csv(os.path.join(BASE_PATH, 'RESULTS.csv'), index = False)
+    print("results updated")
+    return RESULTS
 # '''
 # Load Model(s)
 # '''
@@ -109,20 +130,15 @@ np.random.seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-Unet = UNet_scratch().to(device)
-
-
 # '''
 # Train
 # '''
-n_epochs = 10
+n_epochs = 2
 lossBCE = torch.nn.BCEWithLogitsLoss()
-opt = AdamW(Unet.parameters(), lr = 0.01)
 metric = Dice(num_classes = 4)
 
 num_training_steps = n_epochs * len(train_data_loader)
 print(num_training_steps, 'steps!!')
-lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
 progress_bar = tqdm(range(num_training_steps))
 total_t0 = time.time()
 sample_every = 100
@@ -138,20 +154,42 @@ torch.cuda.empty_cache()
 # model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
 # model.plot_train(save_loc = RESULT_PATH)
 
-model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_noaugment_old", log_file=None)
+# [model name, epoch, metric, value]
+RESULTS = []
+
+# SCRATCH UNET
+Unet = UNet_scratch().to(device)
+opt = AdamW(Unet.parameters(), lr = 0.01)
+lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
+
+
+model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_noaugment", log_file=None)
 print(f'Training: {model.name}')
 
 model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
 model.plot_train(save_loc = RESULT_PATH)
 
+RESULTS = update_results(model, RESULTS, BASE_PATH)
+
+# RESNET
+pretrained = models.resnet18(pretrained = True)
+pretrained.fc = nn.Linear(pretrained.fc.in_features, 4)
+
+pretrained = models.resnet18(pretrained = True)
+pretrained.fc = nn.Linear(pretrained.fc.in_features, 4)
+opt = AdamW(pretrained.parameters(), lr = 0.01)
+lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
+
+model = Model(pretrained, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "RESNET", log_file=None)
+print(f'Training: {model.name}')
+
+model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+model.plot_train(save_loc = RESULT_PATH)
+
+RESULTS = update_results(model, RESULTS, BASE_PATH)
 
 # '''
-# Validation Loop
-# '''
-
-
-# '''
-# Save Model Weights
+# saving results
 # '''
 
 
