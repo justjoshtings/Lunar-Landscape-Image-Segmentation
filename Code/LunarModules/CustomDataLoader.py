@@ -100,23 +100,23 @@ class CustomDataLoader:
         # print(test.shape, test_mask.shape)
 
         img_mask_processor = ImageProcessor()
-        check_plotter = Plotter()
+        # check_plotter = Plotter()
 
         #Data Augmentation steps
         img_loaded, mask_loaded = img_mask_processor.data_augmentation(img_loaded, mask_loaded)
 
-        check_plotter.peek_images(sample_images=img_loaded,sample_masks=mask_loaded,file_name='current_test_2.png')
+        # check_plotter.peek_images(sample_images=img_loaded,sample_masks=mask_loaded,file_name='current_test_2.png')
 
         #Pre-processing steps
         img_loaded = img_mask_processor.preprocessor_images(img_loaded)
         mask_loaded = img_mask_processor.preprocessor_masks(mask_loaded)
 
         # Check and save images as plots
-        sample_mask = img_mask_processor.rescale(mask_loaded)
+        # sample_mask = img_mask_processor.rescale(mask_loaded)
         # Reverse one hot encode predicted mask
-        sample_mask_decoded = img_mask_processor.reverse_one_hot_encode(sample_mask)
-        sample_mask_decoded = img_mask_processor.rescale(sample_mask_decoded)
-        check_plotter.peek_images(sample_images=img_loaded,sample_masks=sample_mask_decoded,file_name='current_test.png')
+        # sample_mask_decoded = img_mask_processor.reverse_one_hot_encode(sample_mask)
+        # sample_mask_decoded = img_mask_processor.rescale(sample_mask_decoded)
+        # check_plotter.peek_images(sample_images=img_loaded,sample_masks=sample_mask_decoded,file_name='current_test.png')
 
         img_tensor = torch.from_numpy(img_loaded)
         mask_tensor = torch.from_numpy(mask_loaded)
