@@ -20,6 +20,7 @@ import datetime as dt
 from transformers import get_scheduler
 from tqdm.auto import tqdm
 from torchmetrics import JaccardIndex
+from torchmetrics import Dice
 
 
 # WILL NEED TO CLEAN THIS WHOLE MESS UP LATER!!!
@@ -100,7 +101,7 @@ class Model:
     '''
 
     ## NEED TO ADD THIS
-    def __init__(self, model, loss, opt, random_seed, train_data_loader, val_data_loader, test_data_loader, device, name = None, log_file=None):
+    def __init__(self, model, loss, opt, metric, random_seed, train_data_loader, val_data_loader, test_data_loader, device, base_loc = None, name = None, log_file=None):
         '''
         Params:
             self: instance of object
@@ -122,22 +123,25 @@ class Model:
             "train_iou":[],
             "val_iou":[]
         }
-        self.metric = JaccardIndex(num_classes = 4)
+        self.metric = metric
+        self.base_loc = base_loc
 
-    def run_training(self, n_epochs, device):
+    def run_training(self, n_epochs, device, save_every = 2, load = False):
         num_training_steps = n_epochs * len(self.train_data_loader)
         progress_bar = tqdm(range(num_training_steps))
-
         lr_scheduler = get_scheduler(name = "linear", optimizer = self.opt, num_warmup_steps = 0, num_training_steps = num_training_steps)
-        total_t0 = time.time()
-        sample_every = 100
 
+        if load:
+            last_e = self.load_latest_model(device)
+        else:
+            last_e = 0
 
-        for e in range(n_epochs):
+        for e in range(last_e, n_epochs):
             running_train_loss = 0
             running_val_loss = 0
             running_train_iou = 0
             running_val_iou = 0
+
             t0 = time.time()
             self.model.train()
 
@@ -149,12 +153,12 @@ class Model:
 
                 self.model.zero_grad()
                 pred = self.model(x_train.float())
+                loss = self.loss(pred, y_train.float())
+
                 pred_soft = torch.softmax(pred, dim = 1)
                 pred_argmax = torch.argmax(pred_soft, dim = 1)
 
-                loss = self.loss(pred, y_train.float())
                 running_train_loss += loss.item()
-                #running_train_iou += self.IoU(pred, y_train.float())
                 running_train_iou += self.metric(pred_argmax.cpu(), torch.argmax(torch.softmax(y_train.float(), dim = 1), dim = 1).cpu())
 
                 # print(pred, loss)
@@ -173,7 +177,7 @@ class Model:
                     x_val, y_val = batch[0].to(device), batch[1].to(device)
                     y_val_pred = self.model(x_val.float())
                     loss = self.loss(y_val_pred, y_val.float())
-                    #running_val_iou += self.IoU(y_val_pred, y_val.float())
+
                     running_val_iou += self.metric(torch.argmax(torch.softmax(y_val_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(torch.softmax(y_val.float(), dim = 1), dim = 1).cpu())
                     running_val_loss += loss.item()
 
@@ -181,11 +185,14 @@ class Model:
             self.history['val_iou'].append((running_val_iou/len(self.val_data_loader)))
 
             print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, train_iou {self.history['train_iou'][-1]}, val_loss {self.history['val_loss'][-1]}, val_iou {self.history['val_iou'][-1]}")
-            #print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, val_loss {self.history['val_loss'][-1]}")
+
             # Measure how long this epoch took.
             print("")
             training_time = str(dt.timedelta(seconds = int(round((time.time() - t0)))))
             print(f"Training epoch took: {training_time}")
+
+            if e % save_every == 0:
+                self.save_model(e)
 
     def plot_train(self, save_loc):
         fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8,8))
@@ -201,7 +208,39 @@ class Model:
         sns.despine()
         fig.save(os.path.join(save_loc, f'{self.name}_training_curves'))
 
+    def save_model(self, epoch):
+        save_loc = os.path.join(self.base_loc, 'Models')
+        if not os.path.exists(save_loc):
+            print('Making Model Dir')
+            os.mkdir(save_loc)
+        torch.save(self.model.state_dict(), os.path.join(save_loc, f"model_{self.name}_EP{epoch}.pt"))
+        print('saving model ...')
+
+    def load_latest_model(self, device):
+        model_loc = os.path.join(self.base_loc, 'Models')
+        if not os.path.exists(model_loc):
+            print('Model folder doesnt exist, skipping loading...')
+            return 0
+        models = [x for x in os.listdir(model_loc) if '.pt' in x and self.name in x]
+        if len(models) == 0:
+            print('No models saved to load')
+            return 0
+        else:
+            saved_iterations = sorted([int(x[x.find('EP')+2:x.find('.pt')]) for x in models])
+            latest_model = f'model_{self.name}_EP{saved_iterations[-1]}.pt'
+            print(f"Latest Model Saved: {latest_model}")
+            model_file = os.path.join(model_loc, latest_model)
+            self.model.load_state_dict(torch.load(model_file, map_location = device))
+            print("Model Loaded!")
+            return saved_iterations[-1]
+
     def IoU(self, y_pred, labels):
+        '''
+        DELETE LATER -- doesn't work, using PyTorch IoU
+        :param y_pred:
+        :param labels:
+        :return:
+        '''
         y_pred = y_pred.squeeze(1)
         y_pred = y_pred.float().cpu().detach().numpy()
         labels = labels.float().cpu().detach().numpy()
