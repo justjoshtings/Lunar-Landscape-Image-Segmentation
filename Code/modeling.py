@@ -5,6 +5,7 @@ Script to do modeling
 author: @saharae, @justjoshtings
 created: 11/17/2022
 """
+import pandas as pd
 
 from LunarModules.ImageProcessor import ImageProcessor
 from LunarModules.CustomDataLoader import CustomDataLoader
@@ -21,6 +22,8 @@ from datetime import datetime
 import datetime as dt
 from torchmetrics import JaccardIndex
 from torchmetrics import Dice
+from torchvision import models
+
 
 CODE_PATH = os.getcwd()
 os.chdir('..')
@@ -110,7 +113,53 @@ def do_preprocessing_checks():
 
 # do_preprocessing_checks()
 
+def update_results(model, RESULTS, BASE_PATH):
+    for epoch, val in enumerate(model.history['train_loss']):
+        RESULTS.append([model.name, epoch, 'train_loss', val])
+    for epoch, val in enumerate(model.history['val_loss']):
+        RESULTS.append([model.name, epoch, 'val_loss', val])
+    for epoch, val in enumerate(model.history['train_iou']):
+        RESULTS.append([model.name, epoch, 'train_iou', val])
+    for epoch, val in enumerate(model.history['val_iou']):
+        RESULTS.append([model.name, epoch, 'val_iou', val])
 
+    if os.path.exists(os.path.join(BASE_PATH, 'RESULTS.csv')):
+        current_results = pd.read_csv(os.path.join(BASE_PATH, 'RESULTS.csv'))
+    else:
+        current_results = pd.DataFrame(columns = ['model_name', 'epoch', 'metric', 'value'])
+    new_res = pd.DataFrame(RESULTS, columns = ['model_name', 'epoch', 'metric', 'value'])
+    to_save = pd.concat([current_results, new_res])
+    to_save.to_csv(os.path.join(BASE_PATH, 'RESULTS.csv'), index = False)
+    print("results updated")
+    return RESULTS
+
+def plot_prediction(model, test_data_loader):
+    for step, batch in enumerate(test_data_loader):
+        if step == 0:
+            x_test, y_test = batch[0], batch[1]
+            y_pred = model.model(x_test.to(device).float())
+            y_pred_OHE = torch.softmax(y_pred.float(), dim = 1)
+            y_pred_reorder = y_pred_OHE.permute(0, 2, 3, 1)
+
+            y_test_reorder = y_test.permute(0, 2, 3, 1)
+
+            x_test_reorder = x_test.permute(0, 2, 3, 1)
+            img = x_test_reorder.cpu().detach().numpy()[13]
+
+            img_processor = ImageProcessor()
+            predicted_image_decoded = img_processor.reverse_one_hot_encode(y_pred_reorder.cpu().detach().numpy()[13])
+            predicted_image_decoded_mask = img_processor.reverse_one_hot_encode(y_test_reorder.cpu().detach().numpy()[13])
+            fig, axes = plt.subplots(nrows = 1, ncols = 3, figsize = (10, 8))
+
+            axes[0].imshow(predicted_image_decoded)
+            axes[0].set_title('help - predicted')
+            axes[1].imshow(predicted_image_decoded_mask)
+            axes[1].set_title('help - mask')
+            axes[2].imshow(img)
+            axes[2].set_title('help - actual')
+            fig.savefig('prayers.png')
+            print('done')
+            return
 # '''
 # Load Model(s)
 # '''
@@ -121,7 +170,6 @@ np.random.seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-Unet = UNet_scratch().to(device)
 
 
 # '''
@@ -129,12 +177,10 @@ Unet = UNet_scratch().to(device)
 # '''
 n_epochs = 10
 lossBCE = torch.nn.BCEWithLogitsLoss()
-opt = AdamW(Unet.parameters(), lr = 0.01)
 metric = Dice(num_classes = 4)
 
 num_training_steps = n_epochs * len(train_data_loader)
 print(num_training_steps, 'steps!!')
-lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
 progress_bar = tqdm(range(num_training_steps))
 total_t0 = time.time()
 sample_every = 100
@@ -145,25 +191,41 @@ print('training')
 gc.collect()
 torch.cuda.empty_cache()
 
-# model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Initial_model", log_file=None)
-#
-# model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-# model.plot_train(save_loc = RESULT_PATH)
+# [model name, epoch, metric, value]
+RESULTS = []
 
-model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_noaugment", log_file=None)
+# SCRATCH UNET
+Unet = UNet_scratch().to(device)
+opt = AdamW(Unet.parameters(), lr = 0.01)
+lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
+
+model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch", log_file=None)
 print(f'Training: {model.name}')
 
 model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
 model.plot_train(save_loc = RESULT_PATH)
 
-# '''
-# Validation Loop
-# '''
+# RESULTS = update_results(model, RESULTS, BASE_PATH)
+
+last_epoch = model.load() # only if not training
+plot_prediction(model, test_data_loader)
 
 
-# '''
-# Save Model Weights
-# '''
+RESULTS = []
+# RESNET
+
+pretrained_resnet = Unet_transfer()
+
+opt = AdamW(pretrained_resnet.parameters(), lr = 0.01)
+lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
+
+# model = Model(pretrained_resnet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "RESNET", log_file=None)
+# print(f'Training: {model.name}')
+#
+# model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+# model.plot_train(save_loc = RESULT_PATH)
+#
+# RESULTS = update_results(model, RESULTS, BASE_PATH)
 
 
 # '''

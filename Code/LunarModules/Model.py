@@ -21,6 +21,7 @@ from transformers import get_scheduler
 from tqdm.auto import tqdm
 from torchmetrics import JaccardIndex
 from torchmetrics import Dice
+from torchvision import models
 
 
 # WILL NEED TO CLEAN THIS WHOLE MESS UP LATER!!!
@@ -39,7 +40,7 @@ class Block(nn.Module):
     def forward(self, x):
         return self.conv2(self.relu(self.conv1(x)))
 
-class Encoder(nn.Module):
+class Down(nn.Module):
     def __init__(self, chs = (3, 16, 32, 64)):
         super().__init__()
         self.enc_blocks = nn.ModuleList([Block(chs[i], chs[i + 1]) for i in range(len(chs) - 1)])
@@ -53,7 +54,7 @@ class Encoder(nn.Module):
             x = self.pool(x)
         return ftrs
 
-class Decoder(nn.Module):
+class Up(nn.Module):
     def __init__(self, chs = (64, 32, 16), verbose = False):
         super().__init__()
         self.verbose = verbose
@@ -78,17 +79,55 @@ class Decoder(nn.Module):
         enc_ftrs = torchvision.transforms.CenterCrop([H, W])(enc_ftrs)
         return enc_ftrs
 
-class UNet_scratch(nn.Module):
-    def __init__(self, enc_chs = (3, 16, 32, 64), dec_chs = (64, 32, 16), num_class = 4, retain_dim = True, out_sz = (256, 256), verbose = False):
+class RESNET_Down(nn.Module):
+    def __init__(self):
         super().__init__()
-        self.encoder = Encoder(enc_chs)
-        self.decoder = Decoder(dec_chs, verbose = verbose)
+        self.resnet = models.resnet18(weights = 'ResNet18_Weights.DEFAULT')
+        pop = self.resnet._modules.pop('fc')
+        self.layers = list(self.resnet._modules.keys())
+        self.blocks = nn.Sequential(self.resnet._modules)
+
+        self.pool = nn.MaxPool2d(2)
+
+    def forward(self, x):
+        ftrs = []
+        for i, block in enumerate(self.blocks):
+            x = block(x)
+            if i >= 4:
+                ftrs.append(x)
+            #x = self.pool(x)
+        return ftrs
+
+class Unet_transfer(nn.Module):
+    def __init__(self, dec_chs = (512, 256, 128, 64), num_class = 4, retain_dim = True, out_sz = (256, 256), verbose = False):
+        super().__init__()
+        self.encoder = RESNET_Down()
+        self.decoder = Up(dec_chs, verbose = verbose)
         self.head = nn.Conv2d(dec_chs[-1], num_class, 1)
         self.retain_dim = retain_dim
         self.out_sz = out_sz
 
     def forward(self, x):
         enc_ftrs = self.encoder(x)
+        print(enc_ftrs[-1])
+        out = self.decoder(enc_ftrs[::-1][0], enc_ftrs[::-1][1:])
+        out = self.head(out)
+        if self.retain_dim:
+            out = torch.nn.functional.interpolate(out, self.out_sz)
+        return out
+
+class UNet_scratch(nn.Module):
+    def __init__(self, enc_chs = (3, 16, 32, 64), dec_chs = (64, 32, 16), num_class = 4, retain_dim = True, out_sz = (256, 256), verbose = False):
+        super().__init__()
+        self.encoder = Down(enc_chs)
+        self.decoder = Up(dec_chs, verbose = verbose)
+        self.head = nn.Conv2d(dec_chs[-1], num_class, 1)
+        self.retain_dim = retain_dim
+        self.out_sz = out_sz
+
+    def forward(self, x):
+        enc_ftrs = self.encoder(x)
+        #print(len(enc_ftrs))
         out = self.decoder(enc_ftrs[::-1][0], enc_ftrs[::-1][1:])
         out = self.head(out)
         if self.retain_dim:
@@ -125,6 +164,11 @@ class Model:
         }
         self.metric = metric
         self.base_loc = base_loc
+        self.device = device
+
+    def load(self):
+        last_e = self.load_latest_model(self.device)
+        return last_e
 
     def run_training(self, n_epochs, device, save_every = 2, load = False):
         num_training_steps = n_epochs * len(self.train_data_loader)
@@ -194,19 +238,38 @@ class Model:
             if e % save_every == 0:
                 self.save_model(e)
 
+    def run_test(self, device, save = False):
+        self.model.eval()
+        with torch.no_grad():
+            running_test_iou = 0
+            running_test_loss = 0
+            for step, batch in enumerate(self.test_data_loader):
+                x_test, y_test = batch[0].to(device), batch[1].to(device)
+                y_test_pred = self.model(x_test.float())
+                loss = self.loss(y_test_pred, y_test.float())
+
+                running_test_iou += self.metric(torch.argmax(torch.softmax(y_test_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+                running_test_loss += loss.item()
+
+    def predict(self, img):
+        x_test = img.to(self.device)
+        y_pred = self.model(x_test.float())
+        return torch.argmax(torch.softmax(y_pred.float(), dim = 1), dim = 1).cpu()
+
+
     def plot_train(self, save_loc):
         fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8,8))
         axes[0].plot(self.history['train_loss'], color = "slategrey", label = "Training Loss")
         axes[0].plot(self.history['val_loss'], color = "seagreen", label = "Training Loss")
         axes[0].legend()
-        axes[0].title(f'MODEL: {self.name} LOSS')
+        axes[0].set_title(f'MODEL: {self.name} LOSS')
 
         axes[1].plot(self.history['train_iou'], color = "slategrey", label = "Training IoU")
         axes[1].plot(self.history['val_iou'], color = "seagreen", label = "Training IoU")
         axes[1].legend()
-        axes[1].title(f'MODEL: {self.name} IoU')
+        axes[1].set_title(f'MODEL: {self.name} IoU')
         sns.despine()
-        fig.save(os.path.join(save_loc, f'{self.name}_training_curves'))
+        fig.savefig(os.path.join(save_loc, f'{self.name}_training_curves'))
 
     def save_model(self, epoch):
         save_loc = os.path.join(self.base_loc, 'Models')
@@ -221,7 +284,7 @@ class Model:
         if not os.path.exists(model_loc):
             print('Model folder doesnt exist, skipping loading...')
             return 0
-        models = [x for x in os.listdir(model_loc) if '.pt' in x and self.name in x]
+        models = [x for x in os.listdir(model_loc) if '.pt' in x and self.name+'_EP' in x]
         if len(models) == 0:
             print('No models saved to load')
             return 0
@@ -250,3 +313,4 @@ class Model:
         #thresholded = torch.clamp(20*(iou-0.5),0,10).ceil()/10
         thresholded = np.ceil(np.clip(20 * (iou - 0.5), 0, 10)) / 10
         return thresholded
+
