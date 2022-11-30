@@ -108,64 +108,64 @@ def do_preprocessing_checks():
 
     print(sample_mask_decoded.shape)
 
-do_preprocessing_checks()
+# do_preprocessing_checks()
 
 
-# # '''
-# # Load Model(s)
-# # '''
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# print('Using device..', device)
-# torch.manual_seed(42)
-# np.random.seed(42)
-# torch.backends.cudnn.deterministic = True
-# torch.backends.cudnn.benchmark = False
+# '''
+# Load Model(s)
+# '''
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print('Using device..', device)
+torch.manual_seed(42)
+np.random.seed(42)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
-# Unet = UNet_scratch().to(device)
-
-
-# # '''
-# # Train
-# # '''
-# n_epochs = 10
-# lossBCE = torch.nn.BCEWithLogitsLoss()
-# opt = AdamW(Unet.parameters(), lr = 0.01)
-# metric = Dice(num_classes = 4)
-
-# num_training_steps = n_epochs * len(train_data_loader)
-# print(num_training_steps, 'steps!!')
-# lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
-# progress_bar = tqdm(range(num_training_steps))
-# total_t0 = time.time()
-# sample_every = 100
+Unet = UNet_scratch().to(device)
 
 
-# print('training')
+# '''
+# Train
+# '''
+n_epochs = 10
+lossBCE = torch.nn.BCEWithLogitsLoss()
+opt = AdamW(Unet.parameters(), lr = 0.01)
+metric = Dice(num_classes = 4)
 
-# gc.collect()
-# torch.cuda.empty_cache()
+num_training_steps = n_epochs * len(train_data_loader)
+print(num_training_steps, 'steps!!')
+lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
+progress_bar = tqdm(range(num_training_steps))
+total_t0 = time.time()
+sample_every = 100
 
-# # model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Initial_model", log_file=None)
-# #
-# # model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-# # model.plot_train(save_loc = RESULT_PATH)
 
-# model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_noaugment", log_file=None)
-# print(f'Training: {model.name}')
+print('training')
 
+gc.collect()
+torch.cuda.empty_cache()
+
+# model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Initial_model", log_file=None)
+#
 # model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
 # model.plot_train(save_loc = RESULT_PATH)
 
-# # '''
-# # Validation Loop
-# # '''
+model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_noaugment", log_file=None)
+print(f'Training: {model.name}')
+
+model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+model.plot_train(save_loc = RESULT_PATH)
+
+# '''
+# Validation Loop
+# '''
 
 
-# # '''
-# # Save Model Weights
-# # '''
+# '''
+# Save Model Weights
+# '''
 
 
-# # '''
-# # Evaluate Model(s) on Test Data
-# # '''
+# '''
+# Evaluate Model(s) on Test Data
+# '''
