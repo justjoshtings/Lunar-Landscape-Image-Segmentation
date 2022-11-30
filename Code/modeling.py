@@ -127,12 +127,39 @@ def update_results(model, RESULTS, BASE_PATH):
         current_results = pd.read_csv(os.path.join(BASE_PATH, 'RESULTS.csv'))
     else:
         current_results = pd.DataFrame(columns = ['model_name', 'epoch', 'metric', 'value'])
-
-    to_save = pd.concat([current_results, RESULTS])
+    new_res = pd.DataFrame(RESULTS, columns = ['model_name', 'epoch', 'metric', 'value'])
+    to_save = pd.concat([current_results, new_res])
     to_save.to_csv(os.path.join(BASE_PATH, 'RESULTS.csv'), index = False)
     print("results updated")
     return RESULTS
 
+def plot_prediction(model, test_data_loader):
+    for step, batch in enumerate(test_data_loader):
+        if step == 0:
+            x_test, y_test = batch[0], batch[1]
+            y_pred = model.model(x_test.to(device).float())
+            y_pred_OHE = torch.softmax(y_pred.float(), dim = 1)
+            y_pred_reorder = y_pred_OHE.permute(0, 2, 3, 1)
+
+            y_test_reorder = y_test.permute(0, 2, 3, 1)
+
+            x_test_reorder = x_test.permute(0, 2, 3, 1)
+            img = x_test_reorder.cpu().detach().numpy()[13]
+
+            img_processor = ImageProcessor()
+            predicted_image_decoded = img_processor.reverse_one_hot_encode(y_pred_reorder.cpu().detach().numpy()[13])
+            predicted_image_decoded_mask = img_processor.reverse_one_hot_encode(y_test_reorder.cpu().detach().numpy()[13])
+            fig, axes = plt.subplots(nrows = 1, ncols = 3, figsize = (10, 8))
+
+            axes[0].imshow(predicted_image_decoded)
+            axes[0].set_title('help - predicted')
+            axes[1].imshow(predicted_image_decoded_mask)
+            axes[1].set_title('help - mask')
+            axes[2].imshow(img)
+            axes[2].set_title('help - actual')
+            fig.savefig('prayers.png')
+            print('done')
+            return
 # '''
 # Load Model(s)
 # '''
@@ -164,11 +191,6 @@ print('training')
 gc.collect()
 torch.cuda.empty_cache()
 
-# model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Initial_model", log_file=None)
-#
-# model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-# model.plot_train(save_loc = RESULT_PATH)
-
 # [model name, epoch, metric, value]
 RESULTS = []
 
@@ -177,42 +199,33 @@ Unet = UNet_scratch().to(device)
 opt = AdamW(Unet.parameters(), lr = 0.01)
 lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
 
-model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_noaugment", log_file=None)
+model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch", log_file=None)
 print(f'Training: {model.name}')
 
 model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
 model.plot_train(save_loc = RESULT_PATH)
 
-RESULTS = update_results(model, RESULTS, BASE_PATH)
+# RESULTS = update_results(model, RESULTS, BASE_PATH)
 
+last_epoch = model.load() # only if not training
+plot_prediction(model, test_data_loader)
+
+
+RESULTS = []
 # RESNET
-pretrained = models.resnet18(pretrained = True)
-pretrained.fc = nn.Linear(pretrained.fc.in_features, 4)
-opt = AdamW(pretrained.parameters(), lr = 0.01)
+
+pretrained_resnet = Unet_transfer()
+
+opt = AdamW(pretrained_resnet.parameters(), lr = 0.01)
 lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
 
-model = Model(pretrained, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "RESNET", log_file=None)
-print(f'Training: {model.name}')
-
-model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-model.plot_train(save_loc = RESULT_PATH)
-
-RESULTS = update_results(model, RESULTS, BASE_PATH)
-
-# '''
-# saving results
-# '''
-
-
-
-# '''
-# Validation Loop
-# '''
-
-
-# '''
-# Save Model Weights
-# '''
+# model = Model(pretrained_resnet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "RESNET", log_file=None)
+# print(f'Training: {model.name}')
+#
+# model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+# model.plot_train(save_loc = RESULT_PATH)
+#
+# RESULTS = update_results(model, RESULTS, BASE_PATH)
 
 
 # '''
