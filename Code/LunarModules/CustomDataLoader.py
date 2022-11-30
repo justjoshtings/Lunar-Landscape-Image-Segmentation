@@ -24,15 +24,17 @@ class CustomDataLoader:
     '''
     Object to handle data generator.
     '''
-    def __init__(self, img_folder, mask_folder, batch_size, imsize, num_classes, first_n=None, log_file=None):
+    def __init__(self, img_folder, mask_folder, batch_size, imsize, num_classes, split, first_n=None, log_file=None, augmentation=False):
         '''
         Params:
             self: instance of object
-            img_folder: directory path to images folder
-            mask_folder: directory path to masks folder
-            batch_size: batch size to use 
-            imsize: image height and width and n channels (image height, image width, n of channels)
-            first_n: optional, set to some int to choose only first n data points
+            img_folder (str): directory path to images folder
+            mask_folder (str): directory path to masks folder
+            batch_size (int): batch size to use 
+            imsize (int): image height and width and n channels (image height, image width, n of channels)
+            num_classes (int): number of classes in mask labels
+            split (str): the dataset split, 'train', 'validation', 'test'
+            first_n (int): optional, set to some int to choose only first n data points
             log_file (str): default is None to not have logging, otherwise, specify logging path ../filepath/log.log
         '''
         self.img_folder = img_folder
@@ -41,6 +43,8 @@ class CustomDataLoader:
         self.batch_size = 1
         self.imsize = imsize
         self.num_classes = num_classes
+        self.split = split
+        self.augmentation = augmentation
         self.first_n = first_n
         self.log_file = log_file
 
@@ -103,7 +107,8 @@ class CustomDataLoader:
         # check_plotter = Plotter()
 
         #Data Augmentation steps
-        img_loaded, mask_loaded = img_mask_processor.data_augmentation(img_loaded, mask_loaded)
+        if self.augmentation:
+            img_loaded, mask_loaded = img_mask_processor.data_augmentation(img_loaded, mask_loaded)
 
         # check_plotter.peek_images(sample_images=img_loaded,sample_masks=mask_loaded,file_name='current_test_2.png')
 
