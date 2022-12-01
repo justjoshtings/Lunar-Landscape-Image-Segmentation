@@ -23,6 +23,8 @@ import datetime as dt
 from torchmetrics import JaccardIndex
 from torchmetrics import Dice
 from torchvision import models
+import segmentation_models_pytorch as smp
+import segmentation_models_pytorch.utils as smp_utils
 
 
 CODE_PATH = os.getcwd()
@@ -202,22 +204,22 @@ lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, n
 model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch", log_file=None)
 print(f'Training: {model.name}')
 
-model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-model.plot_train(save_loc = RESULT_PATH)
+# model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+# model.plot_train(save_loc = RESULT_PATH)
 
 # RESULTS = update_results(model, RESULTS, BASE_PATH)
 
-last_epoch = model.load() # only if not training
-plot_prediction(model, test_data_loader)
+#last_epoch = model.load() # only if not training
+#plot_prediction(model, test_data_loader)
 
 
 RESULTS = []
 # RESNET
 
-pretrained_resnet = Unet_transfer()
-
-opt = AdamW(pretrained_resnet.parameters(), lr = 0.01)
-lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
+# pretrained_resnet = Unet_transfer()
+#
+# opt = AdamW(pretrained_resnet.parameters(), lr = 0.01)
+# lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
 
 # model = Model(pretrained_resnet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "RESNET", log_file=None)
 # print(f'Training: {model.name}')
@@ -227,6 +229,64 @@ lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, n
 #
 # RESULTS = update_results(model, RESULTS, BASE_PATH)
 
+
+ENCODER = 'resnet18'
+ENCODER_WEIGHTS = 'imagenet'
+ACTIVATION = 'sigmoid' # could be None for logits or 'softmax2d' for multiclass segmentation
+
+# create segmentation model with pretrained encoder
+model = smp.Unet(
+    encoder_name=ENCODER,
+    encoder_weights=ENCODER_WEIGHTS,
+    classes=7,
+    activation=ACTIVATION,
+)
+
+preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
+
+loss = smp.utils.losses.DiceLoss()
+metrics = [
+    smp_utils.metrics.IoU(threshold=0.5),
+]
+
+optimizer = torch.optim.Adam([
+    dict(params=model.parameters(), lr=0.0001),
+])
+
+train_epoch = smp_utils.train.TrainEpoch(
+    model,
+    loss=lossBCE,
+    metrics=metrics,
+    optimizer=opt,
+    device=device,
+    verbose=True,
+)
+
+valid_epoch = smp_utils.train.ValidEpoch(
+    model,
+    loss=lossBCE,
+    metrics=metrics,
+    device=device,
+    verbose=True,
+)
+
+best_iou_score = 0.0
+train_logs_list, valid_logs_list = [], []
+
+for i in range(0, n_epochs):
+
+    # Perform training & validation
+    print('\nEpoch: {}'.format(i))
+    train_logs = train_epoch.run(train_data_loader)
+    valid_logs = valid_epoch.run(val_data_loader)
+    train_logs_list.append(train_logs)
+    valid_logs_list.append(valid_logs)
+
+    # Save model if a better val IoU score is obtained
+    # if best_iou_score < valid_logs['iou_score']:
+    #     best_iou_score = valid_logs['iou_score']
+    #     torch.save(model, './best_model.pth')
+    #     print('Model saved!')
 
 # '''
 # Evaluate Model(s) on Test Data
