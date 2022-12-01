@@ -123,8 +123,8 @@ class CustomDataLoader:
         # sample_mask_decoded = img_mask_processor.rescale(sample_mask_decoded)
         # check_plotter.peek_images(sample_images=img_loaded,sample_masks=sample_mask_decoded,file_name='current_test.png')
 
-        img_tensor = torch.from_numpy(img_loaded)
-        mask_tensor = torch.from_numpy(mask_loaded)
+        img_tensor = torch.from_numpy(img_loaded).float()
+        mask_tensor = torch.from_numpy(mask_loaded).float()
 
         # Change ordering, channels first then img size
         img_tensor = img_tensor.permute(2, 0, 1)

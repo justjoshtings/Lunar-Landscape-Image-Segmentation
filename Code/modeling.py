@@ -23,6 +23,8 @@ import datetime as dt
 from torchmetrics import JaccardIndex
 from torchmetrics import Dice
 from torchvision import models
+import segmentation_models_pytorch as smp
+import segmentation_models_pytorch.utils as smp_utils
 
 
 CODE_PATH = os.getcwd()
@@ -114,14 +116,9 @@ def do_preprocessing_checks():
 # do_preprocessing_checks()
 
 def update_results(model, RESULTS, BASE_PATH):
-    for epoch, val in enumerate(model.history['train_loss']):
-        RESULTS.append([model.name, epoch, 'train_loss', val])
-    for epoch, val in enumerate(model.history['val_loss']):
-        RESULTS.append([model.name, epoch, 'val_loss', val])
-    for epoch, val in enumerate(model.history['train_iou']):
-        RESULTS.append([model.name, epoch, 'train_iou', val])
-    for epoch, val in enumerate(model.history['val_iou']):
-        RESULTS.append([model.name, epoch, 'val_iou', val])
+    for metric in model.history.keys():
+        for epoch, val in enumerate(model.history[metric]):
+            RESULTS.append([model.name, epoch, metric, val])
 
     if os.path.exists(os.path.join(BASE_PATH, 'RESULTS.csv')):
         current_results = pd.read_csv(os.path.join(BASE_PATH, 'RESULTS.csv'))
@@ -160,8 +157,9 @@ def plot_prediction(model, test_data_loader):
             fig.savefig('prayers.png')
             print('done')
             return
+
 # '''
-# Load Model(s)
+# SET UP device
 # '''
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print('Using device..', device)
@@ -171,22 +169,22 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 
+# '''
+# SET hyperparams
+# '''
 
-# '''
-# Train
-# '''
-n_epochs = 10
+n_epochs = 20
+LR = 0.001
+metrics = {
+    "Dice": Dice(num_classes = 4),
+    "IOU": JaccardIndex(num_classes = 4)
+}
+
 lossBCE = torch.nn.BCEWithLogitsLoss()
-metric = Dice(num_classes = 4)
-
 num_training_steps = n_epochs * len(train_data_loader)
+
 print(num_training_steps, 'steps!!')
-progress_bar = tqdm(range(num_training_steps))
 total_t0 = time.time()
-sample_every = 100
-
-
-print('training')
 
 gc.collect()
 torch.cuda.empty_cache()
@@ -196,28 +194,27 @@ RESULTS = []
 
 # SCRATCH UNET
 Unet = UNet_scratch().to(device)
-opt = AdamW(Unet.parameters(), lr = 0.01)
+opt = AdamW(Unet.parameters(), lr = LR)
 lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
 
-model = Model(Unet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch", log_file=None)
-print(f'Training: {model.name}')
+model = Model(Unet, loss = lossBCE, opt = opt, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch", log_file=None)
 
 model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-model.plot_train(save_loc = RESULT_PATH)
+# model.plot_train(save_loc = RESULT_PATH)
 
-# RESULTS = update_results(model, RESULTS, BASE_PATH)
+RESULTS = update_results(model, RESULTS, BASE_PATH)
 
-last_epoch = model.load() # only if not training
-plot_prediction(model, test_data_loader)
+#last_epoch = model.load() # only if not training
+#plot_prediction(model, test_data_loader)
 
 
 RESULTS = []
 # RESNET
 
-pretrained_resnet = Unet_transfer()
-
-opt = AdamW(pretrained_resnet.parameters(), lr = 0.01)
-lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
+# pretrained_resnet = Unet_transfer()
+#
+# opt = AdamW(pretrained_resnet.parameters(), lr = 0.01)
+# lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
 
 # model = Model(pretrained_resnet, loss = lossBCE, opt = opt, metric = metric, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "RESNET", log_file=None)
 # print(f'Training: {model.name}')
@@ -227,6 +224,19 @@ lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, n
 #
 # RESULTS = update_results(model, RESULTS, BASE_PATH)
 
+backbone = 'resnet18'
+encoder_weights = 'imagenet'
+activation = 'sigmoid'
+
+loss = smp.utils.losses.BCEWithLogitsLoss()
+metrics = [
+    smp_utils.metrics.IoU(threshold=0.5),
+]
+pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'Pretrained')
+
+pretrained.run_training(n_epochs)
+
+RESULTS = update_results(pretrained, RESULTS, BASE_PATH)
 
 # '''
 # Evaluate Model(s) on Test Data
