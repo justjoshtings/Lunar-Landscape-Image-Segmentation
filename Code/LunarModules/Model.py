@@ -4,6 +4,11 @@ Object to handle data generators.
 
 author: @saharae, @justjoshtings
 created: 11/12/2022
+
+
+CITATIONS:
+Pretrained model backbone based on this example: https://github.com/qubvel/segmentation_models.pytorch/blob/master/examples/cars%20segmentation%20(camvid).ipynb
+Scratch model based on this code: https://amaarora.github.io/2020/09/13/unet.html
 """
 import pandas as pd
 import numpy as np
@@ -22,6 +27,10 @@ from tqdm.auto import tqdm
 from torchmetrics import JaccardIndex
 from torchmetrics import Dice
 from torchvision import models
+import segmentation_models_pytorch as smp
+import segmentation_models_pytorch.utils as smp_utils
+from torch.optim import Adam, AdamW
+
 
 
 # WILL NEED TO CLEAN THIS WHOLE MESS UP LATER!!!
@@ -140,7 +149,7 @@ class Model:
     '''
 
     ## NEED TO ADD THIS
-    def __init__(self, model, loss, opt, metric, random_seed, train_data_loader, val_data_loader, test_data_loader, device, base_loc = None, name = None, log_file=None):
+    def __init__(self, model, loss, opt, metrics, random_seed, train_data_loader, val_data_loader, test_data_loader, device, base_loc = None, name = None, log_file=None):
         '''
         Params:
             self: instance of object
@@ -158,11 +167,13 @@ class Model:
         self.opt = opt
         self.history = {
             "train_loss":[],
-            "val_loss":[],
-            "train_iou":[],
-            "val_iou":[]
+            "val_loss":[]
         }
-        self.metric = metric
+        for metric in metrics.keys():
+            self.history[f'train_{metric}'] = []
+            self.history[f'val_{metric}'] = []
+
+        self.metrics = metrics
         self.base_loc = base_loc
         self.device = device
 
@@ -171,6 +182,7 @@ class Model:
         return last_e
 
     def run_training(self, n_epochs, device, save_every = 2, load = False):
+        print(f'Training: {self.name}')
         num_training_steps = n_epochs * len(self.train_data_loader)
         progress_bar = tqdm(range(num_training_steps))
         lr_scheduler = get_scheduler(name = "linear", optimizer = self.opt, num_warmup_steps = 0, num_training_steps = num_training_steps)
@@ -181,17 +193,19 @@ class Model:
             last_e = 0
 
         for e in range(last_e, n_epochs):
-            running_train_loss = 0
-            running_val_loss = 0
-            running_train_iou = 0
-            running_val_iou = 0
+
+            running_metrics = {
+                'running_train_loss': 0,
+                'running_val_loss': 0
+            }
+            for metric in self.metrics.keys():
+                running_metrics[f'running_train_{metric}'] = 0
+                running_metrics[f'running_val_{metric}'] = 0
 
             t0 = time.time()
             self.model.train()
 
             for step, batch in enumerate(self.train_data_loader):
-                # print(batch[0].shape)
-                # print(batch[1].shape)
                 x_train, y_train = batch[0].to(device), batch[1].to(device)
                 x_train.requires_grad = True
 
@@ -202,18 +216,20 @@ class Model:
                 pred_soft = torch.softmax(pred, dim = 1)
                 pred_argmax = torch.argmax(pred_soft, dim = 1)
 
-                running_train_loss += loss.item()
-                running_train_iou += self.metric(pred_argmax.cpu(), torch.argmax(torch.softmax(y_train.float(), dim = 1), dim = 1).cpu())
+                running_metrics['running_train_loss'] += loss.item()
+                for metric in self.metrics.keys():
+                    m = self.metrics[metric]
+                    running_metrics[f'running_train_{metric}'] += m(pred_argmax.cpu(), torch.argmax(torch.softmax(y_train.float(), dim = 1), dim = 1).cpu())
 
-                # print(pred, loss)
                 self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
                 lr_scheduler.step()
                 progress_bar.update(1)
 
-            self.history["train_loss"].append((running_train_loss/len(self.train_data_loader)))
-            self.history["train_iou"].append((running_train_iou / len(self.train_data_loader)))
+            self.history["train_loss"].append((running_metrics['running_train_loss']/len(self.train_data_loader)))
+            for metric in self.metrics.keys():
+                self.history[f'train_{metric}'].append((running_metrics[f'running_train_{metric}'] / len(self.train_data_loader)))
 
             self.model.eval()
             with torch.no_grad():
@@ -222,14 +238,20 @@ class Model:
                     y_val_pred = self.model(x_val.float())
                     loss = self.loss(y_val_pred, y_val.float())
 
-                    running_val_iou += self.metric(torch.argmax(torch.softmax(y_val_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(torch.softmax(y_val.float(), dim = 1), dim = 1).cpu())
-                    running_val_loss += loss.item()
+                    running_metrics['running_val_loss'] += loss.item()
+                    for metric in self.metrics.keys():
+                        m = self.metrics[metric]
+                        running_metrics[f'running_val_{metric}'] += m(torch.argmax(torch.softmax(y_val_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(torch.softmax(y_val.float(), dim = 1), dim = 1).cpu())
 
-            self.history['val_loss'].append((running_val_loss/len(self.val_data_loader)))
-            self.history['val_iou'].append((running_val_iou/len(self.val_data_loader)))
+            self.history["val_loss"].append((running_metrics['running_val_loss']/len(self.train_data_loader)))
+            for metric in self.metrics.keys():
+                self.history[f'val_{metric}'].append((running_metrics[f'running_val_{metric}'] / len(self.train_data_loader)))
 
-            print(f"EPOCH: {e} -- train_loss {self.history['train_loss'][-1]}, train_iou {self.history['train_iou'][-1]}, val_loss {self.history['val_loss'][-1]}, val_iou {self.history['val_iou'][-1]}")
+            s = f"EPOCH: {e} -- "
+            for metric in self.history.keys():
+                s += f"{metric} {self.history[metric][-1]} "
 
+            print(s)
             # Measure how long this epoch took.
             print("")
             training_time = str(dt.timedelta(seconds = int(round((time.time() - t0)))))
@@ -239,17 +261,31 @@ class Model:
                 self.save_model(e)
 
     def run_test(self, device, save = False):
+        running_metrics = {
+            'running_test_loss':0
+        }
+        for metric in self.metrics.keys():
+            running_metrics[f'running_test_{metric}'] = 0
+
         self.model.eval()
         with torch.no_grad():
-            running_test_iou = 0
-            running_test_loss = 0
+
             for step, batch in enumerate(self.test_data_loader):
                 x_test, y_test = batch[0].to(device), batch[1].to(device)
                 y_test_pred = self.model(x_test.float())
                 loss = self.loss(y_test_pred, y_test.float())
 
-                running_test_iou += self.metric(torch.argmax(torch.softmax(y_test_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
-                running_test_loss += loss.item()
+                running_metrics['running_test_loss'] += loss.item()
+                for metric in self.metrics.keys():
+                    m = self.metrics[metric]
+                    running_metrics[f'running_test_{metric}'] += m(torch.argmax(torch.softmax(y_test_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+
+        s = f"TESTING: "
+        for metric in self.metrics.keys():
+            s += f"{metric} {round(running_metrics[f'running_test_{metric}']/len(self.test_data_loader), 4)} "
+
+        print(s)
+
 
     def predict(self, img):
         x_test = img.to(self.device)
@@ -314,3 +350,91 @@ class Model:
         thresholded = np.ceil(np.clip(20 * (iou - 0.5), 0, 10)) / 10
         return thresholded
 
+class Pretrained_Model:
+
+    def __init__(self, backbone, encoder_weights, activation, metrics, LR, loss, device, train_data_loader, val_data_loader, test_data_loader, base_loc, name = None):
+        self.backbone = backbone
+        self.encoder_weights = encoder_weights
+        self.activation = activation
+        self.metrics = metrics
+        self.LR = LR
+        self.train_data_loader = train_data_loader
+        self.val_data_loader = val_data_loader
+        self.test_data_loader = test_data_loader
+
+        self.loss = loss
+        self.device = device
+        self.name = name
+        self.base_loc = base_loc
+
+        self.model = smp.Unet(
+                    encoder_name=self.backbone,
+                    encoder_weights=self.encoder_weights,
+                    classes=4,
+                    activation=self.activation,
+                )
+
+        self.optimizer = AdamW(params=self.model.parameters(), lr=self.LR)
+
+        self.preprocessing_fn = smp.encoders.get_preprocessing_fn(self.backbone, self.encoder_weights)
+
+        self.train_epoch = smp_utils.train.TrainEpoch(
+            self.model,
+            loss = self.loss,
+            metrics = self.metrics,
+            optimizer = self.optimizer,
+            device = self.device,
+            verbose = True,
+        )
+
+        self.valid_epoch = smp_utils.train.ValidEpoch(
+            self.model,
+            loss = self.loss,
+            metrics = self.metrics,
+            device = self.device,
+            verbose = True,
+        )
+
+    def run_training(self, n_epochs):
+        print(f"Training: {self.name}")
+        best_val_iou = 0.0
+        train_logs_list, valid_logs_list = [], []
+        self.history = {}
+
+        for i in range(0, n_epochs):
+            # Perform training & validation
+            print('\nEpoch: {}'.format(i))
+            train_logs = self.train_epoch.run(self.train_data_loader)
+            val_logs = self.valid_epoch.run(self.val_data_loader)
+            for key in train_logs.keys():
+                if key in self.history.keys():
+                    self.history[f'train_{key}'] = train_logs[key]
+                else:
+                    self.history[f'train_{key}'] = [train_logs[key]]
+            for key in val_logs.keys():
+                if key in self.history.keys():
+                    self.history[f'val_{key}'] = val_logs[key]
+                else:
+                    self.history[f'val_{key}'] = [val_logs[key]]
+
+            if self.history[f'val_iou_score'][-1] > best_val_iou:
+                best_val_iou = self.history[f'val_iou_score'][-1]
+                self.save_model(i)
+
+    def save_model(self, epoch):
+        save_loc = os.path.join(self.base_loc, 'Models')
+        if not os.path.exists(save_loc):
+            print('Making Model Dir')
+            os.mkdir(save_loc)
+        torch.save(self.model.state_dict(), os.path.join(save_loc, f"model_{self.name}_EP{epoch}.pt"))
+        print('saving model ...')
+
+    def run_testing(self):
+        test_epoch = smp.utils.train.ValidEpoch(
+            model = self.model,
+            loss = self.loss,
+            metrics = self.metrics,
+            device = self.device,
+        )
+
+        logs = test_epoch.run(self.test_data_loader)
