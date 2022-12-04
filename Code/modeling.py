@@ -131,13 +131,14 @@ def update_results(model, RESULTS, BASE_PATH):
     return RESULTS
 
 def plot_prediction(model, test_data_loader):
+    print('plotting...')
     for step, batch in enumerate(test_data_loader):
         if step == 0:
             x_test, y_test = batch[0], batch[1]
-            y_pred = model.model(x_test.to(device).float())
-            y_pred_OHE = torch.softmax(y_pred.float(), dim = 1)
-            y_pred_reorder = y_pred_OHE.permute(0, 2, 3, 1)
+            y_pred = model.model(x_test.to(device))
+            y_pred_OHE = torch.softmax(y_pred, dim = 1)
 
+            y_pred_reorder = y_pred_OHE.permute(0, 2, 3, 1)
             y_test_reorder = y_test.permute(0, 2, 3, 1)
 
             x_test_reorder = x_test.permute(0, 2, 3, 1)
@@ -146,15 +147,16 @@ def plot_prediction(model, test_data_loader):
             img_processor = ImageProcessor()
             predicted_image_decoded = img_processor.reverse_one_hot_encode(y_pred_reorder.cpu().detach().numpy()[13])
             predicted_image_decoded_mask = img_processor.reverse_one_hot_encode(y_test_reorder.cpu().detach().numpy()[13])
+
             fig, axes = plt.subplots(nrows = 1, ncols = 3, figsize = (10, 8))
 
             axes[0].imshow(predicted_image_decoded)
-            axes[0].set_title('help - predicted')
+            axes[0].set_title(f'{model.name} - predicted')
             axes[1].imshow(predicted_image_decoded_mask)
-            axes[1].set_title('help - mask')
+            axes[1].set_title(f'{model.name} - mask')
             axes[2].imshow(img)
-            axes[2].set_title('help - actual')
-            fig.savefig('prayers.png')
+            axes[2].set_title(f'{model.name} - actual')
+            fig.savefig(f'prayers_{model.name}.png')
             print('done')
             return
 
@@ -199,13 +201,13 @@ lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, n
 
 model = Model(Unet, loss = lossBCE, opt = opt, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch", log_file=None)
 
-model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-# model.plot_train(save_loc = RESULT_PATH)
+# model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+# # model.plot_train(save_loc = RESULT_PATH)
+#
+# RESULTS = update_results(model, RESULTS, BASE_PATH)
 
-RESULTS = update_results(model, RESULTS, BASE_PATH)
-
-#last_epoch = model.load() # only if not training
-#plot_prediction(model, test_data_loader)
+last_epoch = model.load() # only if not training
+plot_prediction(model, test_data_loader)
 
 
 RESULTS = []
@@ -226,18 +228,19 @@ RESULTS = []
 
 backbone = 'resnet18'
 encoder_weights = 'imagenet'
-activation = 'sigmoid'
+activation = None
 
 loss = smp.utils.losses.BCEWithLogitsLoss()
 metrics = [
     smp_utils.metrics.IoU(threshold=0.5),
 ]
 pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'Pretrained')
-
+n_epochs = 3
 pretrained.run_training(n_epochs)
 
-RESULTS = update_results(pretrained, RESULTS, BASE_PATH)
-
+# RESULTS = update_results(pretrained, RESULTS, BASE_PATH)
+last_epoch = pretrained.load() # only if not training
+plot_prediction(pretrained, test_data_loader)
 # '''
 # Evaluate Model(s) on Test Data
 # '''
