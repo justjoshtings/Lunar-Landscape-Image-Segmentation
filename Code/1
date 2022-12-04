@@ -1,0 +1,51 @@
+  Running command git clone --filter=blob:none --quiet https://github.com/qubvel/segmentation_models.pytorch /tmp/pip-req-build-40lgsqc1
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/utils/logging.py", line 177, in emit
+    self.console.print(renderable, overflow="ignore", crop=False, style=style)
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_vendor/rich/console.py", line 1673, in print
+    extend(render(renderable, render_options))
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_vendor/rich/console.py", line 1305, in render
+    for render_output in iter_render:
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/utils/logging.py", line 134, in __rich_console__
+    for line in lines:
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_vendor/rich/segment.py", line 249, in split_lines
+    for segment in segments:
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_vendor/rich/console.py", line 1283, in render
+    renderable = rich_cast(renderable)
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_vendor/rich/protocol.py", line 36, in rich_cast
+    renderable = cast_method()
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/self_outdated_check.py", line 130, in __rich__
+    pip_cmd = get_best_invocation_for_this_pip()
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/utils/entrypoints.py", line 58, in get_best_invocation_for_this_pip
+    if found_executable and os.path.samefile(
+  File "/usr/lib/python3.8/genericpath.py", line 101, in samefile
+    s2 = os.stat(f2)
+FileNotFoundError: [Errno 2] No such file or directory: '/usr/bin/pip3.8'
+Call stack:
+  File "/home/ubuntu/.local/bin/pip", line 8, in <module>
+    sys.exit(main())
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/cli/main.py", line 70, in main
+    return command.main(cmd_args)
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/cli/base_command.py", line 101, in main
+    return self._main(args)
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/cli/base_command.py", line 223, in _main
+    self.handle_pip_version_check(options)
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/cli/req_command.py", line 190, in handle_pip_version_check
+    pip_self_version_check(session, options)
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/self_outdated_check.py", line 236, in pip_self_version_check
+    logger.warning("[present-rich] %s", upgrade_prompt)
+  File "/usr/lib/python3.8/logging/__init__.py", line 1458, in warning
+    self._log(WARNING, msg, args, **kwargs)
+  File "/usr/lib/python3.8/logging/__init__.py", line 1589, in _log
+    self.handle(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 1599, in handle
+    self.callHandlers(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 1661, in callHandlers
+    hdlr.handle(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 954, in handle
+    self.emit(record)
+  File "/home/ubuntu/.local/lib/python3.8/site-packages/pip/_internal/utils/logging.py", line 179, in emit
+    self.handleError(record)
+Message: '[present-rich] %s'
+Arguments: (UpgradePrompt(old='22.2.2', new='22.3.1'),)

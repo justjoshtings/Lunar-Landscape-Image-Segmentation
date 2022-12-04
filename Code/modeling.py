@@ -115,18 +115,18 @@ def do_preprocessing_checks():
 
 # do_preprocessing_checks()
 
-def update_results(model, RESULTS, BASE_PATH):
+def update_results(model, RESULTS, RESULT_PATH):
     for metric in model.history.keys():
         for epoch, val in enumerate(model.history[metric]):
             RESULTS.append([model.name, epoch, metric, val])
 
-    if os.path.exists(os.path.join(BASE_PATH, 'RESULTS.csv')):
-        current_results = pd.read_csv(os.path.join(BASE_PATH, 'RESULTS.csv'))
+    if os.path.exists(os.path.join(RESULT_PATH, 'RESULTS.csv')):
+        current_results = pd.read_csv(os.path.join(RESULT_PATH, 'RESULTS.csv'))
     else:
         current_results = pd.DataFrame(columns = ['model_name', 'epoch', 'metric', 'value'])
     new_res = pd.DataFrame(RESULTS, columns = ['model_name', 'epoch', 'metric', 'value'])
     to_save = pd.concat([current_results, new_res])
-    to_save.to_csv(os.path.join(BASE_PATH, 'RESULTS.csv'), index = False)
+    to_save.to_csv(os.path.join(RESULT_PATH, 'RESULTS.csv'), index = False)
     print("results updated")
     return RESULTS
 
@@ -175,8 +175,9 @@ torch.backends.cudnn.benchmark = False
 # SET hyperparams
 # '''
 
-n_epochs = 20
+n_epochs = 10
 LR = 0.001
+training_mode = True
 metrics = {
     "Dice": Dice(num_classes = 4),
     "IOU": JaccardIndex(num_classes = 4)
@@ -206,7 +207,13 @@ model = Model(Unet, loss = lossBCE, opt = opt, metrics = metrics, random_seed = 
 #
 # RESULTS = update_results(model, RESULTS, BASE_PATH)
 
-last_epoch = model.load() # only if not training
+if training_mode:
+    model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+    RESULTS = update_results(model, RESULTS, RESULT_PATH)
+    # model.plot_train(save_loc = RESULT_PATH)
+else:
+    last_epoch = model.load() # only if not training
+
 plot_prediction(model, test_data_loader)
 
 
@@ -224,7 +231,7 @@ RESULTS = []
 # model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
 # model.plot_train(save_loc = RESULT_PATH)
 #
-# RESULTS = update_results(model, RESULTS, BASE_PATH)
+# RESULTS = update_results(model, RESULTS, RESULT_PATH)
 
 backbone = 'resnet18'
 encoder_weights = 'imagenet'
@@ -234,13 +241,36 @@ loss = smp.utils.losses.BCEWithLogitsLoss()
 metrics = [
     smp_utils.metrics.IoU(threshold=0.5),
 ]
-pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'Pretrained')
+pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'Pretrained_ground')
+
 n_epochs = 3
-pretrained.run_training(n_epochs)
 
 # RESULTS = update_results(pretrained, RESULTS, BASE_PATH)
-last_epoch = pretrained.load() # only if not training
+
+if training_mode:
+    pretrained.run_training(n_epochs)
+    RESULTS = update_results(pretrained, RESULTS, RESULT_PATH)
+else:
+    last_epoch = pretrained.load() # only if not training
 plot_prediction(pretrained, test_data_loader)
+
+# '''
+# Plots on Test Data
+# '''
+# Plot some test results' class channel breakdowns
+check_plotter_channels_breakdown = Plotter()
+for i in range(5):
+    try:
+        print('Plotting breakdown channels')
+        # Unet Scratch
+        check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'render_test_{model.name}')
+        check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'real_test_{model.name}')
+        # Resnet18 Backbone
+        check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'render_test_{pretrained.name}')
+        check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'real_test_{pretrained.name}')
+    except RuntimeError:
+        continue
+
 # '''
 # Evaluate Model(s) on Test Data
 # '''
