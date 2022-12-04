@@ -15,9 +15,8 @@ import random
 import cv2
 import copy
 import time
+import torch
 random.seed(time.perf_counter())
-
-# WILL NEED TO CLEAN THIS WHOLE MESS UP LATER!!!
 
 class Plotter:
     '''
@@ -32,7 +31,7 @@ class Plotter:
         '''
     
     #Sanity check, view few mages
-    def peek_images(self, sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None, sample_images2=None, model_alt=None):
+    def peek_images(self, sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None, sample_images2=None, model_alt=None, test_type=None):
         """
         Function to plot a randomly selected training set (or validation set if given validation filepaths)
 
@@ -100,12 +99,26 @@ class Plotter:
             if len(sample_images.shape) == 3:
                 sample_images = np.expand_dims(sample_images, axis=0)
 
-            # Predict image
-            predicted_image = model.predict(sample_images)
-            predicted_image = predicted_image[0,::,::,::]
-            # Reverse one hot encode predicted mask
             img_processor = ImageProcessor()
+
+            img_tensor = torch.from_numpy(sample_images).float()
+
+            # Change ordering, channels first then img size
+            img_tensor = img_tensor.permute(0, 3, 1, 2)
+            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            img_tensor = img_tensor.to(device)
+            
+            # Predict image
+            predicted_image = model.model(img_tensor.float())
+            predicted_image = torch.softmax(predicted_image.float(), dim = 1)
+            predicted_image = predicted_image.permute(0, 2, 3, 1)
+            predicted_image = predicted_image.cpu().detach().numpy()
+            predicted_image = predicted_image[0,::,::,::]
+            predicted_image = img_processor.rescale(predicted_image)
+
+            # Reverse one hot encode predicted mask
             predicted_image_decoded = img_processor.reverse_one_hot_encode(predicted_image)
+            predicted_image_decoded = img_processor.rescale(predicted_image_decoded)
 
             
             if encode == 'uint8':
@@ -149,14 +162,20 @@ class Plotter:
             plt.title('Predicted Mask {}:'.format(model_alt.name), fontdict = {'fontsize' : 8})
             plt.axis('off')
 
-        if not os.path.exists('./plots/peek_images/'):
-            os.makedirs('./plots/peek_images/')
+        if predict is not None:
+            if not os.path.exists(f'./plots/predictions/main_predictions/{test_type}'):
+                os.makedirs(f'./plots/predictions/main_predictions/{test_type}')
 
-        plt.savefig(f'./plots/peek_images/{file_name}')
+            plt.savefig(f'./plots/predictions/main_predictions/{test_type}/{file_name}')
+        else:
+            if not os.path.exists('./plots/peek_images/'):
+                os.makedirs('./plots/peek_images/')
+
+            plt.savefig(f'./plots/peek_images/{file_name}')
         # plt.savefig(f'./plots/peek_images/current_test.png')
         # plt.show()
 
-    def peek_masks_breakdown(self, sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None):
+    def peek_masks_breakdown(self, sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None, test_type=None):
         """
         Function to plot a randomly selected prediction mask and breakdown channels
         
@@ -183,8 +202,18 @@ class Plotter:
 
         img_processor = ImageProcessor()
 
+        img_tensor = torch.from_numpy(sample_images).float()
+
+        # Change ordering, channels first then img size
+        img_tensor = img_tensor.permute(0, 3, 1, 2)
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        img_tensor = img_tensor.to(device)
+        
         # Predict image
-        predicted_image = model.predict(sample_images)
+        predicted_image = model.model(img_tensor.float())
+        predicted_image = torch.softmax(predicted_image.float(), dim = 1)
+        predicted_image = predicted_image.permute(0, 2, 3, 1)
+        predicted_image = predicted_image.cpu().detach().numpy()
         predicted_image = predicted_image[0,::,::,::]
         predicted_image = img_processor.rescale(predicted_image)
 
@@ -193,7 +222,7 @@ class Plotter:
         predicted_image_decoded = img_processor.rescale(predicted_image_decoded)
 
         # Predicted
-        plt.subplot(4,2,1)
+        plt.subplot(3,2,1)
 
         if encode == 'uint8':
             if color_scale == 'gray':
@@ -218,11 +247,11 @@ class Plotter:
 
         for i in range(predicted_image.shape[-1]-1):
             # Channels
-            plt.subplot(4,2,i+2)
+            plt.subplot(3,2,i+2)
             plt.imshow(predicted_image[::,::,i])
 
             pixels_activated = np.count_nonzero(predicted_image[::,::,i] >= 1)
-            percent_pixels_activated = round(pixels_activated / np.size(predicted_image[::,::,i]) * 100, 5)
+            percent_pixels_activated = round(pixels_activated / np.size(predicted_image[::,::,i]) * 100, 3)
 
             all_colored_channel_activations+=percent_pixels_activated
 
@@ -230,13 +259,18 @@ class Plotter:
             plt.axis('off')
         
         # Unknown Channel
-        plt.subplot(4,2,8)
-        plt.imshow(predicted_image[::,::,6])
+        plt.subplot(3,2,5)
+        plt.imshow(predicted_image[::,::,3])
 
-        plt.title(labels[-1] + '{}% Pixels Activated'.format(round(100 - all_colored_channel_activations, 5)), fontdict = {'fontsize' : 8})
+        plt.title(labels[-1] + '{}% Pixels Activated'.format(round(100 - all_colored_channel_activations, 3)), fontdict = {'fontsize' : 8})
         plt.axis('off')
-            
-        plt.show()
+
+        if not os.path.exists(f'./plots/predictions/channel_breakdowns/{test_type}/'):
+            os.makedirs(f'./plots/predictions/channel_breakdowns/{test_type}/')
+
+        plt.savefig(f'./plots/predictions/channel_breakdowns/{test_type}/{file_name}')
+
+        # plt.show()
 
     #Sanity check, view few mages
     def peek_images_test(self, sample_images, sample_masks=None, encode=None, color_scale=None, file_name=None, mask_name=None, predict=None, model=None):
@@ -297,9 +331,9 @@ class Plotter:
         plt.title('Predicted Mask {}:'.format(model.name), fontdict = {'fontsize' : 8})
         plt.axis('off')
 
-        plt.show()
+        # plt.show()
 
-    def sanity_check(self, sample_images, sample_masks=None, encode=None, color_scale=None, predict=None, model=None, model_alt=None, predicted_breakdown=None, imsize=None, imsize_alt=None):
+    def sanity_check(self, sample_images, sample_masks=None, encode=None, color_scale=None, predict=None, model=None, model_alt=None, predicted_breakdown=None, imsize=None, imsize_alt=None, test_type=None):
         """
         Function to get a training set (or validation set if given validation filepaths) and calls plotting functions
         
@@ -354,13 +388,15 @@ class Plotter:
         elif predicted_breakdown is not None and sample_masks is not None:
             image1 = img_processor.preprocessor_images(image1)
             mask = img_processor.preprocessor_images(mask)
+
             if image2 is not None:
                 image2 = img_processor.preprocessor_images(image2)
-            self.peek_images(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model, sample_images2=image2, model_alt=model_alt)
-            self.peek_masks_breakdown(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model)
+            self.peek_images(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model, sample_images2=image2, model_alt=model_alt, test_type=test_type)
+            self.peek_masks_breakdown(sample_images=image1, sample_masks=mask, encode=encode, color_scale=color_scale, file_name=file_name, mask_name=mask_name, predict=predict, model=model, test_type=test_type)
         # Test data, no masks
         elif sample_masks is None:
             image1 = img_processor.preprocessor_images(image1)
             self.peek_images_test(sample_images=image1, encode=encode, color_scale=color_scale, file_name=file_name, predict=predict, model=model)
             # peek_masks_breakdown(sample_images=image, encode=encode, color_scale=color_scale, file_name=file_name, predict=predict, model=model)
+        plt.close('all')
 
