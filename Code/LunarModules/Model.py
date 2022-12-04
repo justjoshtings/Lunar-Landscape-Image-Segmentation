@@ -452,3 +452,25 @@ class Pretrained_Model:
         )
 
         logs = test_epoch.run(self.test_data_loader)
+
+    def load(self):
+        last_e = self.load_latest_model(self.device)
+        return last_e
+
+    def load_latest_model(self, device):
+        model_loc = os.path.join(self.base_loc, 'Models')
+        if not os.path.exists(model_loc):
+            print('Model folder doesnt exist, skipping loading...')
+            return 0
+        models = [x for x in os.listdir(model_loc) if '.pt' in x and self.name+'_EP' in x]
+        if len(models) == 0:
+            print('No models saved to load')
+            return 0
+        else:
+            saved_iterations = sorted([int(x[x.find('EP')+2:x.find('.pt')]) for x in models])
+            latest_model = f'model_{self.name}_EP{saved_iterations[-1]}.pt'
+            print(f"Latest Model Saved: {latest_model}")
+            model_file = os.path.join(model_loc, latest_model)
+            self.model.load_state_dict(torch.load(model_file, map_location = device))
+            print("Model Loaded!")
+            return saved_iterations[-1]
