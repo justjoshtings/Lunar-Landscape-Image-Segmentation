@@ -68,6 +68,34 @@ class ImageProcessor:
 
         return img
 
+    def mask_argmax(self, predicted_mask):
+        """
+        Function to argmax across the third dimension and set the pixel of the highest channel to 1
+        and everything else to 0
+
+        Parameters:
+            predicted_mask: predicted mask
+
+        Return:
+            predicted_mask_argmax: 
+        """
+        idx = predicted_mask.argmax(axis=2)
+        predicted_mask_argmax = np.zeros_like(predicted_mask)
+
+        class1 = predicted_mask_argmax[::,::,0]
+        class2 = predicted_mask_argmax[::,::,1]
+        class3 = predicted_mask_argmax[::,::,2]
+        class4 = predicted_mask_argmax[::,::,3]
+
+        class1[np.where(idx==0)] = 1
+        class2[np.where(idx==1)] = 1
+        class3[np.where(idx==2)] = 1
+        class4[np.where(idx==3)] = 1
+
+        predicted_mask_argmax = np.dstack((class1,class2,class3,class4))
+
+        return predicted_mask_argmax
+
     def one_hot_encode(self, img, class_map=None):
         """
         Function to one hot encode ground truth masks

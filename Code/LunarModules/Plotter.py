@@ -114,12 +114,18 @@ class Plotter:
             predicted_image = predicted_image.permute(0, 2, 3, 1)
             predicted_image = predicted_image.cpu().detach().numpy()
             predicted_image = predicted_image[0,::,::,::]
-            predicted_image = img_processor.rescale(predicted_image)
+            predicted_image = img_processor.mask_argmax(predicted_image)
 
-            # Reverse one hot encode predicted mask
+            # Argmax & Reverse one hot encode predicted mask
             predicted_image_decoded = img_processor.reverse_one_hot_encode(predicted_image)
             predicted_image_decoded = img_processor.rescale(predicted_image_decoded)
 
+            # Check for minority classes
+            idx = predicted_image.argmax(axis=2)
+            blue = idx[np.where(idx==1)]
+            green = idx[np.where(idx==1)]
+            if np.count_nonzero(blue) > 0 or np.count_nonzero(green) > 0:
+                print(f'FOUND A PREDITION WITH ROCKS!!! {file_name}')
             
             if encode == 'uint8':
                 if color_scale == 'gray':
@@ -216,8 +222,9 @@ class Plotter:
         predicted_image = predicted_image.cpu().detach().numpy()
         predicted_image = predicted_image[0,::,::,::]
         predicted_image = img_processor.rescale(predicted_image)
+        predicted_image = img_processor.mask_argmax(predicted_image)
 
-        # Reverse one hot encode predicted mask
+        # Argmax & Reverse one hot encode predicted mask
         predicted_image_decoded = img_processor.reverse_one_hot_encode(predicted_image)
         predicted_image_decoded = img_processor.rescale(predicted_image_decoded)
 
@@ -251,7 +258,7 @@ class Plotter:
             plt.imshow(predicted_image[::,::,i])
 
             pixels_activated = np.count_nonzero(predicted_image[::,::,i] >= 1)
-            percent_pixels_activated = round(pixels_activated / np.size(predicted_image[::,::,i]) * 100, 3)
+            percent_pixels_activated = round(pixels_activated / np.size(predicted_image[::,::,i]) * 100, 5)
 
             all_colored_channel_activations+=percent_pixels_activated
 
@@ -262,7 +269,7 @@ class Plotter:
         plt.subplot(3,2,5)
         plt.imshow(predicted_image[::,::,3])
 
-        plt.title(labels[-1] + '{}% Pixels Activated'.format(round(100 - all_colored_channel_activations, 3)), fontdict = {'fontsize' : 8})
+        plt.title(labels[-1] + '{}% Pixels Activated'.format(round(100 - all_colored_channel_activations, 5)), fontdict = {'fontsize' : 8})
         plt.axis('off')
 
         if not os.path.exists(f'./plots/predictions/channel_breakdowns/{test_type}/'):
