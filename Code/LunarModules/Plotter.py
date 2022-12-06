@@ -123,7 +123,7 @@ class Plotter:
             # Check for minority classes
             idx = predicted_image.argmax(axis=2)
             blue = idx[np.where(idx==1)]
-            green = idx[np.where(idx==1)]
+            green = idx[np.where(idx==2)]
             if np.count_nonzero(blue) > 0 or np.count_nonzero(green) > 0:
                 print(f'FOUND A PREDITION WITH ROCKS!!! {file_name}')
             
