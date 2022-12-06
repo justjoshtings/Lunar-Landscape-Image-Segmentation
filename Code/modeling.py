@@ -68,6 +68,31 @@ test_data_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 real_test_data = CustomDataLoader(img_folder=real_test_img_folder, mask_folder=real_test_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='test', augmentation=False)
 real_test_data_loader = DataLoader(real_test_data, batch_size=batch_size, shuffle=True)
 
+def test(loader):
+    for step, batch in enumerate(loader):
+        print("testing loader")
+        if step == 0:
+            x_test, y_test = batch[0], batch[1]
+
+            y_test_reorder = y_test.permute(0, 2, 3, 1)
+            x_test_reorder = x_test.permute(0, 2, 3, 1)
+
+            img = x_test_reorder.cpu().detach().numpy()[10]
+            img_processor = ImageProcessor()
+
+            predicted_image_decoded_mask = img_processor.reverse_one_hot_encode(y_test_reorder.cpu().detach().numpy()[10])
+            fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8, 6))
+
+            axes[0].imshow(predicted_image_decoded_mask)
+            axes[0].set_title(f'clean_mask')
+            axes[1].imshow(img)
+            axes[1].set_title(f'clean_actual')
+            fig.savefig(f'clean_testing_loader.png')
+            print('done')
+            return
+
+test(test_data_loader)
+
 '''
 Review and Check Preprocessing and DataLoader outputs are correctly performed
 '''
@@ -136,18 +161,23 @@ def plot_prediction(model, test_data_loader):
         if step == 0:
             x_test, y_test = batch[0], batch[1]
             y_pred = model.model(x_test.to(device))
+            print(f'TEST: {y_test.shape}', y_test)
+            print(f'PRED: {y_pred.shape}', y_pred)
+            np.save('y_test_batch.npy', y_test.cpu().detach().numpy())
+            np.save('y_pred_batch.npy', y_pred.cpu().detach().numpy())
+
             y_pred_OHE = torch.softmax(y_pred, dim = 1)
+            print(f'PRED OHE: {y_pred_OHE.shape}', y_pred_OHE)
 
             y_pred_reorder = y_pred_OHE.permute(0, 2, 3, 1)
             y_test_reorder = y_test.permute(0, 2, 3, 1)
-
             x_test_reorder = x_test.permute(0, 2, 3, 1)
-            img = x_test_reorder.cpu().detach().numpy()[13]
 
+            img = x_test_reorder.cpu().detach().numpy()[10]
             img_processor = ImageProcessor()
-            predicted_image_decoded = img_processor.reverse_one_hot_encode(y_pred_reorder.cpu().detach().numpy()[13])
-            predicted_image_decoded_mask = img_processor.reverse_one_hot_encode(y_test_reorder.cpu().detach().numpy()[13])
 
+            predicted_image_decoded = img_processor.reverse_one_hot_encode(y_pred_reorder.cpu().detach().numpy()[10])
+            predicted_image_decoded_mask = img_processor.reverse_one_hot_encode(y_test_reorder.cpu().detach().numpy()[10])
             fig, axes = plt.subplots(nrows = 1, ncols = 3, figsize = (10, 8))
 
             axes[0].imshow(predicted_image_decoded)
@@ -169,15 +199,13 @@ torch.manual_seed(42)
 np.random.seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
-
-
 # '''
 # SET hyperparams
 # '''
 
 n_epochs = 10
 LR = 0.001
-training_mode = True
+training_mode = False
 metrics = {
     "Dice": Dice(num_classes = 4),
     "IOU": JaccardIndex(num_classes = 4)
@@ -200,7 +228,7 @@ Unet = UNet_scratch().to(device)
 opt = AdamW(Unet.parameters(), lr = LR)
 lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
 
-model = Model(Unet, loss = lossBCE, opt = opt, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch", log_file=None)
+model = Model(Unet, loss = lossBCE, opt = opt, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_ground", log_file=None)
 
 # model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
 # # model.plot_train(save_loc = RESULT_PATH)
@@ -208,13 +236,14 @@ model = Model(Unet, loss = lossBCE, opt = opt, metrics = metrics, random_seed = 
 # RESULTS = update_results(model, RESULTS, BASE_PATH)
 
 if training_mode:
+    print('not training scratch model rn')
     model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
     RESULTS = update_results(model, RESULTS, RESULT_PATH)
-    # model.plot_train(save_loc = RESULT_PATH)
+    model.plot_train(save_loc = RESULT_PATH)
 else:
     last_epoch = model.load() # only if not training
 
-plot_prediction(model, test_data_loader)
+#plot_prediction(model, test_data_loader)
 
 
 RESULTS = []
@@ -252,6 +281,7 @@ if training_mode:
     RESULTS = update_results(pretrained, RESULTS, RESULT_PATH)
 else:
     last_epoch = pretrained.load() # only if not training
+
 plot_prediction(pretrained, test_data_loader)
 
 # '''
