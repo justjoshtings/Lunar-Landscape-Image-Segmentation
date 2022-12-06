@@ -45,11 +45,11 @@ class ImageProcessor:
         """
         # Binarize the image
         if np.max(img) > 1:
-            img[img > threshold] = 255
-            img[img <= threshold] = 0
+            img[img > threshold] = 255.
+            img[img <= threshold] = 0.
         else:
-            img[img > (threshold/255)] = 255
-            img[img <= (threshold/255)] = 0    
+            img[img > (threshold/255.)] = 255.
+            img[img <= (threshold/255.)] = 0.    
 
         return img
     
@@ -67,6 +67,34 @@ class ImageProcessor:
             img = np.multiply(img, 1./255)
 
         return img
+
+    def mask_max_pixel_normalize(self, img, threshold=0.8):
+        """
+        Function to normalize max pixel intensity to 1 by a threshold multiplier. 
+        
+        Parameters:
+            img: image in numpy matrix
+            threshold: threshold multiplier to reset max pixel intensity to 1
+                        ie: max pixel value is 0.9, if current pixel value is > 0.9*0.8 then set to 1.
+
+        Return:
+            normalized_mask: normalized mask image
+        """
+        max_R_value = img[::,::,0].max()
+        max_G_value = img[::,::,1].max()
+        max_B_value = img[::,::,2].max()
+
+        normalized_R_channel = copy.deepcopy(img[::,::,0])
+        normalized_G_channel = copy.deepcopy(img[::,::,1])
+        normalized_B_channel = copy.deepcopy(img[::,::,2])
+
+        normalized_R_channel[normalized_R_channel > (max_R_value*threshold)] = 1.
+        normalized_G_channel[normalized_G_channel > (max_G_value*threshold)] = 1.
+        normalized_B_channel[normalized_B_channel > (max_B_value*threshold)] = 1.
+
+        normalized_mask = np.dstack((normalized_R_channel,normalized_G_channel,normalized_B_channel))
+
+        return normalized_mask
 
     def mask_argmax(self, predicted_mask):
         """
@@ -154,12 +182,12 @@ class ImageProcessor:
 
         if class_map is None:
             class_map = pd.DataFrame({'name':['Sky', 'Big Rocks', 'Small Rocks', 'Unlabeled'], 
-                                    'r':[255,0,0,0], 
-                                    'g':[0,0,255,0],
-                                    'b':[0,255,0,0]})
+                                    'r':[255.,0.,0.,0.], 
+                                    'g':[0.,0.,255.,0.],
+                                    'b':[0.,255.,0.,0.]})
             
         img = self.binarize(img)
-        
+
         all_red_channels = []
         all_green_channels = []
         all_blue_channels = []
@@ -279,6 +307,7 @@ class ImageProcessor:
         final_img: final image to return from preprocessor after going through 
                 all processing steps.
         """
+        image = self.mask_max_pixel_normalize(image)
         image = self.one_hot_encode(image, class_map)
         final_img = self.rescale(image)
 

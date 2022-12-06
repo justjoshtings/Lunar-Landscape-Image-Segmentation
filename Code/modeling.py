@@ -175,9 +175,9 @@ torch.backends.cudnn.benchmark = False
 # SET hyperparams
 # '''
 
-n_epochs = 10
+n_epochs = 2
 LR = 0.001
-training_mode = True
+training_mode = False
 metrics = {
     "Dice": Dice(num_classes = 4),
     "IOU": JaccardIndex(num_classes = 4)
@@ -201,11 +201,6 @@ opt = AdamW(Unet.parameters(), lr = LR)
 lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
 
 model = Model(Unet, loss = lossBCE, opt = opt, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch", log_file=None)
-
-# model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-# # model.plot_train(save_loc = RESULT_PATH)
-#
-# RESULTS = update_results(model, RESULTS, BASE_PATH)
 
 if training_mode:
     model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
@@ -233,7 +228,8 @@ RESULTS = []
 #
 # RESULTS = update_results(model, RESULTS, RESULT_PATH)
 
-backbone = 'resnet18'
+# backbone = 'resnet18'
+backbone = 'vgg11_bn'
 encoder_weights = 'imagenet'
 activation = None
 
@@ -241,9 +237,9 @@ loss = smp.utils.losses.BCEWithLogitsLoss()
 metrics = [
     smp_utils.metrics.IoU(threshold=0.5),
 ]
-pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'Pretrained_ground')
+pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'VGG11_BN_Ground')
 
-n_epochs = 3
+n_epochs = 2
 
 # RESULTS = update_results(pretrained, RESULTS, BASE_PATH)
 
