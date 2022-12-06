@@ -104,7 +104,7 @@ class CustomDataLoader:
         # print(test.shape, test_mask.shape)
 
         img_mask_processor = ImageProcessor()
-        # check_plotter = Plotter()
+        check_plotter = Plotter()
 
         #Data Augmentation steps
         if self.augmentation:
@@ -119,6 +119,7 @@ class CustomDataLoader:
         # Check and save images as plots
         # sample_mask = img_mask_processor.rescale(mask_loaded)
         # Reverse one hot encode predicted mask
+        # print(sample_mask.max())
         # sample_mask_decoded = img_mask_processor.reverse_one_hot_encode(sample_mask)
         # sample_mask_decoded = img_mask_processor.rescale(sample_mask_decoded)
         # check_plotter.peek_images(sample_images=img_loaded,sample_masks=sample_mask_decoded,file_name='current_test.png')
