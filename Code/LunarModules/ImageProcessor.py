@@ -259,11 +259,6 @@ class ImageProcessor:
             pil_image = TF.hflip(pil_image)
             pil_mask  = TF.hflip(pil_mask)
 
-        # 1C. Horitonal Flifp
-        if random.random() > 0.2:
-            pil_image = TF.hflip(pil_image)
-            pil_mask  = TF.hflip(pil_mask)
-
         # 2. Image Only
         transform_img = RandomChoice([
                     T.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5)

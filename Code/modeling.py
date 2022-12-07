@@ -52,20 +52,21 @@ real_test_mask_folder = DATA_PATH + '/images/real/real_mask'
 batch_size = 32
 imsize = 256
 num_classes = 4
+first_n = None
 
 '''
 Create dataloader for train, validation, and testing dataset
 '''
-train_data = CustomDataLoader(img_folder=train_img_folder, mask_folder=train_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='train', augmentation=True)
+train_data = CustomDataLoader(img_folder=train_img_folder, mask_folder=train_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='train', augmentation=True, first_n=first_n)
 train_data_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
-val_data = CustomDataLoader(img_folder=val_img_folder, mask_folder=val_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='validation', augmentation=False)
+val_data = CustomDataLoader(img_folder=val_img_folder, mask_folder=val_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='validation', augmentation=False, first_n=first_n)
 val_data_loader = DataLoader(val_data, batch_size=batch_size, shuffle=True)
 
-test_data = CustomDataLoader(img_folder=test_img_folder, mask_folder=test_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='test', augmentation=False)
+test_data = CustomDataLoader(img_folder=test_img_folder, mask_folder=test_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='test', augmentation=False, first_n=first_n)
 test_data_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 
-real_test_data = CustomDataLoader(img_folder=real_test_img_folder, mask_folder=real_test_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='test', augmentation=False)
+real_test_data = CustomDataLoader(img_folder=real_test_img_folder, mask_folder=real_test_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='test', augmentation=False, first_n=first_n)
 real_test_data_loader = DataLoader(real_test_data, batch_size=batch_size, shuffle=True)
 
 '''
@@ -175,9 +176,9 @@ torch.backends.cudnn.benchmark = False
 # SET hyperparams
 # '''
 
-n_epochs = 2
+n_epochs = 20
 LR = 0.001
-training_mode = False
+training_mode = True
 metrics = {
     "Dice": Dice(num_classes = 4),
     "IOU": JaccardIndex(num_classes = 4)
@@ -202,12 +203,12 @@ lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, n
 
 model = Model(Unet, loss = lossBCE, opt = opt, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch", log_file=None)
 
-if training_mode:
-    model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-    RESULTS = update_results(model, RESULTS, RESULT_PATH)
-    # model.plot_train(save_loc = RESULT_PATH)
-else:
-    last_epoch = model.load() # only if not training
+# if training_mode:
+#     model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+#     RESULTS = update_results(model, RESULTS, RESULT_PATH)
+#     # model.plot_train(save_loc = RESULT_PATH)
+# else:
+#     last_epoch = model.load() # only if not training
 
 plot_prediction(model, test_data_loader)
 
@@ -229,7 +230,8 @@ RESULTS = []
 # RESULTS = update_results(model, RESULTS, RESULT_PATH)
 
 # backbone = 'resnet18'
-backbone = 'vgg11_bn'
+# backbone = 'vgg11_bn'
+backbone = 'timm-mobilenetv3_large_100'
 encoder_weights = 'imagenet'
 activation = None
 
@@ -237,9 +239,9 @@ loss = smp.utils.losses.BCEWithLogitsLoss()
 metrics = [
     smp_utils.metrics.IoU(threshold=0.5),
 ]
-pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'VGG11_BN_Ground')
+pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'mobilenetv3_large_100')
 
-n_epochs = 2
+n_epochs = 20
 
 # RESULTS = update_results(pretrained, RESULTS, BASE_PATH)
 
@@ -259,9 +261,9 @@ for i in range(5):
     try:
         print('Plotting breakdown channels')
         # Unet Scratch
-        check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'render_test_{model.name}')
-        check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'real_test_{model.name}')
-        # Resnet18 Backbone
+        # check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'render_test_{model.name}')
+        # check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'real_test_{model.name}')
+        # Pretrained Model
         check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'render_test_{pretrained.name}')
         check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'real_test_{pretrained.name}')
     except RuntimeError:
