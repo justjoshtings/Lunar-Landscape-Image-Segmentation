@@ -26,6 +26,8 @@ from torchvision import models
 import segmentation_models_pytorch as smp
 import segmentation_models_pytorch.utils as smp_utils
 
+# test = models.resnet18()
+# print(test)
 
 CODE_PATH = os.getcwd()
 os.chdir('..')
@@ -91,7 +93,7 @@ def test(loader):
             print('done')
             return
 
-test(test_data_loader)
+#test(test_data_loader)
 
 '''
 Review and Check Preprocessing and DataLoader outputs are correctly performed
@@ -205,7 +207,7 @@ torch.backends.cudnn.benchmark = False
 
 n_epochs = 2
 LR = 0.001
-training_mode = False
+training_mode = True
 metrics = {
     "Dice": Dice(num_classes = 4),
     "IOU": JaccardIndex(num_classes = 4)
@@ -278,7 +280,7 @@ if training_mode:
 else:
     last_epoch = pretrained.load() # only if not training
 
-plot_prediction(pretrained, test_data_loader)
+# plot_prediction(pretrained, test_data_loader)
 
 # '''
 # Plots on Test Data
