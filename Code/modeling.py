@@ -27,7 +27,7 @@ from torchvision import models
 import segmentation_models_pytorch as smp
 import segmentation_models_pytorch.utils as smp_utils
 
-def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True):
+def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'clean'):
     '''
     Main loop to run modeling code -- called from main function or from command line
     :param TRAIN: if True the loop will run the full training code
@@ -78,6 +78,7 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True):
     batch_size = 32
     imsize = 256
     num_classes = 4
+    all_models = []
 
     '''
     Create dataloader for train, validation, and testing dataset
@@ -104,7 +105,7 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True):
     '''
     SET hyperparams
     '''
-    n_epochs = 2
+    n_epochs = 20
     LR = 0.001
 
     metrics = {
@@ -126,11 +127,11 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True):
     Unet = UNet_scratch().to(device)
     opt = AdamW(Unet.parameters(), lr = LR)
     lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
-    model = Model(Unet, loss = lossBCE, opt = opt, scheduler = lr_scheduler, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_ground", log_file=None)
+    model = Model(Unet, loss = lossBCE, opt = opt, scheduler = lr_scheduler, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = f"Unet_scratch_{data_source}", log_file=None)
 
     if TRAIN:
         print('Training ', num_training_steps, 'steps!!')
-        model.run_training(n_epochs = n_epochs, device = device, save_on = 'val_IOU', load = True)
+        model.run_training(n_epochs = n_epochs, save_on = 'val_IOU', load = True)
         if plot:
             model.plot_train(save_loc = RESULT_PATH)
 
@@ -143,9 +144,9 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True):
 
     if debug:
         plot_prediction(model, test_data_loader, device)
-
+    all_models.append(model)
     '''
-    PRETRAINED RESNET
+    PRETRAINED VGG
     '''
     RESULTS = []
 
@@ -158,20 +159,50 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True):
     metrics = [
         smp_utils.metrics.IoU(threshold=0.5),
     ]
-    pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'VGG11_BN_Ground')
+    pretrained_vgg = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = f'VGG11_BN_{data_source}')
 
     if TRAIN:
-        pretrained.run_training(n_epochs)
+        pretrained_vgg.run_training(n_epochs)
 
     '''
     Evaluate pretrained model
     '''
-    _ = pretrained.load() # always load the best model
-    pretrained.run_testing()
-    _ = update_results(pretrained, RESULTS, RESULT_PATH)
+    _ = pretrained_vgg.load() # always load the best model
+    pretrained_vgg.run_testing()
+    _ = update_results(pretrained_vgg, RESULTS, RESULT_PATH)
 
     if debug:
-        plot_prediction(pretrained, test_data_loader, device)
+        plot_prediction(pretrained_vgg, test_data_loader, device)
+    all_models.append(pretrained_vgg)
+
+    '''
+    PRETRAINED MOBILENET
+    '''
+    # backbone = 'resnet18'
+    # backbone = 'vgg11_bn'
+    backbone = 'timm-mobilenetv3_large_100'
+    encoder_weights = 'imagenet'
+    activation = None
+
+    loss = smp.utils.losses.BCEWithLogitsLoss()
+    metrics = [
+        smp_utils.metrics.IoU(threshold = 0.5),
+    ]
+    pretrained_mobilenet = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = f'mobilenetv3_large_100_{data_source}')
+
+    if TRAIN:
+        pretrained_mobilenet.run_training(n_epochs)
+    '''
+    Evaluate pretrained model
+    '''
+    _ = pretrained_mobilenet.load() # always load the best model
+    pretrained_mobilenet.run_testing()
+    _ = update_results(pretrained_mobilenet, RESULTS, RESULT_PATH)
+
+    if debug:
+        plot_prediction(pretrained_mobilenet, test_data_loader, device)
+    all_models.append(pretrained_mobilenet)
+
 
     '''
     Plots on Test Data
@@ -179,64 +210,22 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True):
     if plot:
     # Plot some test results' class channel breakdowns
         check_plotter_channels_breakdown = Plotter()
-        for i in range(5):
-            try:
-                print('Plotting breakdown channels')
-                # Unet Scratch
-                check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'render_test_{model.name}')
-                check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'real_test_{model.name}')
-                # Resnet18 Backbone
-                check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'render_test_{pretrained.name}')
-                check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'real_test_{pretrained.name}')
-            except RuntimeError:
-                continue
+        for mod in all_models:
+            for i in range(5):
+                try:
+                    print('Plotting breakdown channels')
+                    # Plot every model made
+                    check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=mod, test_type=f'render_test_{mod.name}')
+                    check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=mod, test_type=f'real_test_{mod.name}')
 
-# backbone = 'resnet18'
-# backbone = 'vgg11_bn'
-backbone = 'timm-mobilenetv3_large_100'
-encoder_weights = 'imagenet'
-activation = None
+                except RuntimeError:
+                    continue
 
-loss = smp.utils.losses.BCEWithLogitsLoss()
-metrics = [
-    smp_utils.metrics.IoU(threshold=0.5),
-]
-pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'mobilenetv3_large_100')
-
-n_epochs = 20
-
-# RESULTS = update_results(pretrained, RESULTS, BASE_PATH)
-
-if training_mode:
-    pretrained.run_training(n_epochs)
-    RESULTS = update_results(pretrained, RESULTS, RESULT_PATH)
-else:
-    last_epoch = pretrained.load() # only if not training
-
-# plot_prediction(pretrained, test_data_loader)
-
-# '''
-# Plots on Test Data
-# '''
-# Plot some test results' class channel breakdowns
-check_plotter_channels_breakdown = Plotter()
-for i in range(5):
-    try:
-        print('Plotting breakdown channels')
-        # Unet Scratch
-        # check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'render_test_{model.name}')
-        # check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'real_test_{model.name}')
-        # Pretrained Model
-        check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'render_test_{pretrained.name}')
-        check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'real_test_{pretrained.name}')
-    except RuntimeError:
-        continue
-
-# '''
-# Evaluate Model(s) on Test Data
-# '''
+    total_t1 = time.time()
+    total_time = (total_t1 - total_t0)/60
+    print(f'TOTAL RUNTIME: {total_time} minutes')
 
 if __name__ == '__main__':
     print('Running modeling.py')
-    RUN_MODEL_LOOP()
+    RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'clean')
 
