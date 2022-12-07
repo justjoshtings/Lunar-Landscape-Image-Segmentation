@@ -27,7 +27,6 @@ from torchvision import models
 import segmentation_models_pytorch as smp
 import segmentation_models_pytorch.utils as smp_utils
 
-
 def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True):
     '''
     Main loop to run modeling code -- called from main function or from command line
@@ -192,7 +191,52 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True):
             except RuntimeError:
                 continue
 
+# backbone = 'resnet18'
+# backbone = 'vgg11_bn'
+backbone = 'timm-mobilenetv3_large_100'
+encoder_weights = 'imagenet'
+activation = None
+
+loss = smp.utils.losses.BCEWithLogitsLoss()
+metrics = [
+    smp_utils.metrics.IoU(threshold=0.5),
+]
+pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'mobilenetv3_large_100')
+
+n_epochs = 20
+
+# RESULTS = update_results(pretrained, RESULTS, BASE_PATH)
+
+if training_mode:
+    pretrained.run_training(n_epochs)
+    RESULTS = update_results(pretrained, RESULTS, RESULT_PATH)
+else:
+    last_epoch = pretrained.load() # only if not training
+
+# plot_prediction(pretrained, test_data_loader)
+
+# '''
+# Plots on Test Data
+# '''
+# Plot some test results' class channel breakdowns
+check_plotter_channels_breakdown = Plotter()
+for i in range(5):
+    try:
+        print('Plotting breakdown channels')
+        # Unet Scratch
+        # check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'render_test_{model.name}')
+        # check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=model, test_type=f'real_test_{model.name}')
+        # Pretrained Model
+        check_plotter_channels_breakdown.sanity_check(test_img_folder+'/' , test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'render_test_{pretrained.name}')
+        check_plotter_channels_breakdown.sanity_check(real_test_img_folder+'/' , real_test_mask_folder+'/', predicted_breakdown=True, predict=True, imsize=imsize, model=pretrained, test_type=f'real_test_{pretrained.name}')
+    except RuntimeError:
+        continue
+
+# '''
+# Evaluate Model(s) on Test Data
+# '''
 
 if __name__ == '__main__':
     print('Running modeling.py')
     RUN_MODEL_LOOP()
+
