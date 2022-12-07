@@ -48,70 +48,76 @@ class Down(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 16, kernel_size = 3)
+        self.convnorm1 = nn.BatchNorm2d(16)
         self.conv2 = nn.Conv2d(in_channels = 16, out_channels = 16, kernel_size = 3)
 
         self.conv3 = nn.Conv2d(in_channels = 16, out_channels = 32, kernel_size = 3)
+        self.convnorm2 = nn.BatchNorm2d(32)
         self.conv4 = nn.Conv2d(in_channels = 32, out_channels = 32, kernel_size = 3)
 
         self.conv5 = nn.Conv2d(in_channels = 32, out_channels = 64, kernel_size = 3)
+        self.convnorm3 = nn.BatchNorm2d(64)
         self.conv6 = nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = 3)
 
         self.pool = nn.MaxPool2d(kernel_size = 2)
         self.relu = nn.ReLU()
 
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, np.sqrt(2. / n))
 
     def forward(self, x):
         ft_maps = []
 
-        x = self.conv2(self.relu(self.conv1(x)))
+        x = self.conv2(self.convnorm1(self.relu(self.conv1(x))))
         ft_maps.append(x)
         x = self.pool(x)
 
-        x = self.conv4(self.relu(self.conv3(x)))
+        x = self.conv4(self.convnorm2(self.relu(self.conv3(x))))
         ft_maps.append(x)
         x = self.pool(x)
 
-        x = self.conv6(self.relu(self.conv5(x)))
+        x = self.conv6(self.convnorm3(self.relu(self.conv5(x))))
         ft_maps.append(x)
         x = self.pool(x)
 
         return ft_maps
 
-    def _init_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, torch.sqrt(2. / n))
 
 class Up(nn.Module):
     def __init__(self, verbose = False):
         super().__init__()
         self.verbose = verbose
-        # self.chs = chs
-        # self.upconvs = nn.ModuleList([nn.ConvTranspose2d(chs[i], chs[i + 1], 2, 2) for i in range(len(chs) - 1)])
-        # self.dec_blocks = nn.ModuleList([Block(chs[i], chs[i + 1]) for i in range(len(chs) - 1)])
 
         self.conv_trans1 = nn.ConvTranspose2d(in_channels = 64, out_channels = 32, kernel_size = 2, stride = 2)
         self.conv_trans2 = nn.ConvTranspose2d(in_channels = 32, out_channels = 16, kernel_size = 2, stride = 2)
 
         self.conv1 = nn.Conv2d(in_channels = 64, out_channels = 32, kernel_size = 3)
+        self.convnorm1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(in_channels = 32, out_channels = 32, kernel_size = 3)
 
         self.conv3 = nn.Conv2d(in_channels = 32, out_channels = 16, kernel_size = 3)
+        self.convnorm2 = nn.BatchNorm2d(16)
         self.conv4 = nn.Conv2d(in_channels = 16, out_channels = 16, kernel_size = 3)
 
         self.relu = nn.ReLU()
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, np.sqrt(2. / n))
 
     def forward(self, x, encoder_features):
         x = self.conv_trans1(x)
         ft = self.crop(encoder_features[0], x)
         x = torch.cat([x, ft], dim = 1)
-        x = self.conv2(self.relu(self.conv1(x))) # decoder block 1
+        x = self.conv2(self.convnorm1(self.relu(self.conv1(x)))) # decoder block 1
 
         x = self.conv_trans2(x)
         ft = self.crop(encoder_features[1], x)
         x = torch.cat([x, ft], dim = 1)
-        x = self.conv4(self.relu(self.conv3(x))) # decoder block 2
+        x = self.conv4(self.convnorm2(self.relu(self.conv3(x)))) # decoder block 2
 
         return x
 
@@ -147,7 +153,7 @@ class Model:
     '''
 
     ## NEED TO ADD THIS
-    def __init__(self, model, loss, opt, metrics, random_seed, train_data_loader, val_data_loader, test_data_loader, device, base_loc = None, name = None, log_file=None):
+    def __init__(self, model, loss, opt, scheduler, metrics, random_seed, train_data_loader, val_data_loader, test_data_loader, device, base_loc = None, name = None, log_file=None):
         '''
         Params:
             self: instance of object
@@ -163,6 +169,7 @@ class Model:
         self.name = name
         self.loss = loss
         self.opt = opt
+        self.scheduler = scheduler
         self.history = {
             "train_loss":[],
             "val_loss":[]
@@ -179,7 +186,7 @@ class Model:
         last_e = self.load_latest_model(self.device)
         return last_e
 
-    def run_training(self, n_epochs, device, save_every = 2, load = False):
+    def run_training(self, n_epochs, device, save_on = 'val_IOU', load = False):
         print(f'Training: {self.name}')
         num_training_steps = n_epochs * len(self.train_data_loader)
         progress_bar = tqdm(range(num_training_steps))
@@ -190,6 +197,11 @@ class Model:
         else:
             last_e = 0
 
+        if save_on not in self.history.keys():
+            print('that save metric doesnt exist, make sure the metric is passed into the function')
+            return
+
+        best_met = 0
         for e in range(last_e, n_epochs):
 
             running_metrics = {
@@ -241,7 +253,7 @@ class Model:
                         m = self.metrics[metric]
                         running_metrics[f'running_val_{metric}'] += m(torch.argmax(torch.softmax(y_val_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(torch.softmax(y_val.float(), dim = 1), dim = 1).cpu())
 
-            self.history["val_loss"].append((running_metrics['running_val_loss']/len(self.train_data_loader)))
+            self.history["val_loss"].append((running_metrics['running_val_loss']/len(self.val_data_loader)))
             for metric in self.metrics.keys():
                 self.history[f'val_{metric}'].append((running_metrics[f'running_val_{metric}'] / len(self.train_data_loader)).numpy())
 
@@ -250,15 +262,16 @@ class Model:
                 s += f"{metric} {self.history[metric][-1]} "
 
             print(s)
+
+            if self.history[save_on] > best_met:
+                self.save_model(e)
             # Measure how long this epoch took.
             print("")
             training_time = str(dt.timedelta(seconds = int(round((time.time() - t0)))))
             print(f"Training epoch took: {training_time}")
 
-            if e % save_every == 0:
-                self.save_model(e)
 
-    def run_test(self, device, save = False):
+    def run_test(self):
         running_metrics = {
             'running_test_loss':0
         }
@@ -269,7 +282,7 @@ class Model:
         with torch.no_grad():
 
             for step, batch in enumerate(self.test_data_loader):
-                x_test, y_test = batch[0].to(device), batch[1].to(device)
+                x_test, y_test = batch[0].to(self.device), batch[1].to(self.device)
                 y_test_pred = self.model(x_test.float())
                 loss = self.loss(y_test_pred, y_test.float())
 
@@ -295,16 +308,20 @@ class Model:
 
 
     def plot_train(self, save_loc):
-        fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8,8))
+        metrics = self.metrics.keys()
+        metrics = np.unique([m[m.find('_')+1:] for m in metrics])
+        fig, axes = plt.subplots(nrows = 1, ncols = len(metrics), figsize = (8,8))
+
         axes[0].plot(self.history['train_loss'], color = "slategrey", label = "Training Loss")
         axes[0].plot(self.history['val_loss'], color = "seagreen", label = "Training Loss")
         axes[0].legend()
         axes[0].set_title(f'MODEL: {self.name} LOSS')
 
-        axes[1].plot(self.history['train_iou'], color = "slategrey", label = "Training IoU")
-        axes[1].plot(self.history['val_iou'], color = "seagreen", label = "Training IoU")
-        axes[1].legend()
-        axes[1].set_title(f'MODEL: {self.name} IoU')
+        for i, ax in enumerate(axes[1:]):
+            ax.plot(self.history[f'train_{metrics[i]}'], color = "slategrey", label = f"Training {metrics[i]}")
+            ax.plot(self.history[f'val_{metrics[i]}'], color = "seagreen", label = f"Training {metrics[i]}")
+            ax.legend()
+            ax.set_title(f'MODEL: {self.name} {metrics[i]}')
         sns.despine()
         fig.savefig(os.path.join(save_loc, f'{self.name}_training_curves'))
 
@@ -333,23 +350,6 @@ class Model:
             self.model.load_state_dict(torch.load(model_file, map_location = device))
             print("Model Loaded!")
             return saved_iterations[-1]
-
-    def IoU(self, y_pred, labels):
-        '''
-        DELETE LATER -- doesn't work, using PyTorch IoU
-        :param y_pred:
-        :param labels:
-        :return:
-        '''
-        y_pred = y_pred.squeeze(1)
-        y_pred = y_pred.float().cpu().detach().numpy()
-        labels = labels.float().cpu().detach().numpy()
-        intersection = (y_pred & labels).sum((1,2))
-        union = (y_pred | labels).sum((1,2))
-        iou = (intersection + 1e-6) / (union + 1e-6) # to avoid divide by 0 error
-        #thresholded = torch.clamp(20*(iou-0.5),0,10).ceil()/10
-        thresholded = np.ceil(np.clip(20 * (iou - 0.5), 0, 10)) / 10
-        return thresholded
 
 class Pretrained_Model:
 
