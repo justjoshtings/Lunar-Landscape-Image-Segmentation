@@ -186,14 +186,14 @@ class Model:
         last_e = self.load_latest_model(self.device)
         return last_e
 
-    def run_training(self, n_epochs, device, save_on = 'val_IOU', load = False):
+    def run_training(self, n_epochs, save_on = 'val_IOU', load = False):
         print(f'Training: {self.name}')
         num_training_steps = n_epochs * len(self.train_data_loader)
         progress_bar = tqdm(range(num_training_steps))
         lr_scheduler = get_scheduler(name = "linear", optimizer = self.opt, num_warmup_steps = 0, num_training_steps = num_training_steps)
 
         if load:
-            last_e = self.load_latest_model(device)
+            last_e = self.load_latest_model(self.device)
         else:
             last_e = 0
 
@@ -216,7 +216,7 @@ class Model:
             self.model.train()
 
             for step, batch in enumerate(self.train_data_loader):
-                x_train, y_train = batch[0].to(device), batch[1].to(device)
+                x_train, y_train = batch[0].to(self.device), batch[1].to(self.device)
                 x_train.requires_grad = True
 
                 self.model.zero_grad()
@@ -244,7 +244,7 @@ class Model:
             self.model.eval()
             with torch.no_grad():
                 for step, batch in enumerate(self.val_data_loader):
-                    x_val, y_val = batch[0].to(device), batch[1].to(device)
+                    x_val, y_val = batch[0].to(self.device), batch[1].to(self.device)
                     y_val_pred = self.model(x_val.float())
                     loss = self.loss(y_val_pred, y_val.float())
 
@@ -396,13 +396,19 @@ class Pretrained_Model:
             verbose = True,
         )
 
-    def run_training(self, n_epochs):
+    def run_training(self, n_epochs, load = False):
         print(f"Training: {self.name}")
         best_val_iou = 0.0
         train_logs_list, valid_logs_list = [], []
         self.history = {}
 
-        for i in range(0, n_epochs):
+        if load:
+            last_e = self.load_latest_model()
+            print(f'Picking up from epoch: {last_e}')
+        else:
+            last_e = 0
+
+        for i in range(last_e, n_epochs):
             # Perform training & validation
             print('\nEpoch: {}'.format(i))
             train_logs = self.train_epoch.run(self.train_data_loader)
