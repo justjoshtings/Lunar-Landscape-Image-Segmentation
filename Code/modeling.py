@@ -27,7 +27,7 @@ from torchvision import models
 import segmentation_models_pytorch as smp
 import segmentation_models_pytorch.utils as smp_utils
 
-def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'clean'):
+def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'ground'):
     '''
     Main loop to run modeling code -- called from main function or from command line
     :param TRAIN: if True the loop will run the full training code
@@ -124,19 +124,17 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'clea
     '''
     UNET SCRATCH
     '''
-    Unet = UNet_scratch().to(device)
+    Unet = UNet_scratch(verbose = False).to(device)
     opt = AdamW(Unet.parameters(), lr = LR)
     lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
-    model = Model(Unet, loss = lossBCE, opt = opt, scheduler = lr_scheduler, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = f"Unet_scratch_{data_source}", log_file=None)
+    model = Model(Unet, loss = lossBCE, opt = opt, scheduler = lr_scheduler, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, real_test_data_loader = real_test_data_loader, device = device, base_loc = BASE_PATH, name = f"Unet_scratch_{data_source}", log_file=None)
 
     if TRAIN:
         print('Training ', num_training_steps, 'steps!!')
         model.run_training(n_epochs = n_epochs, save_on = 'val_IOU', load = True)
-        if plot:
-            model.plot_train(save_loc = RESULT_PATH)
 
     '''
-    Evaluate pretrained
+    Evaluate model
     '''
     _ = model.load() # always load latest model
     model.run_test()
@@ -145,19 +143,20 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'clea
     if debug:
         plot_prediction(model, test_data_loader, device)
     all_models.append(model)
+
+
     '''
     PRETRAINED VGG
     '''
     RESULTS = []
 
-    # backbone = 'resnet18'
     backbone = 'vgg11_bn'
     encoder_weights = 'imagenet'
     activation = None
 
     loss = smp.utils.losses.BCEWithLogitsLoss()
     metrics = [
-        smp_utils.metrics.IoU(threshold=0.5),
+        smp_utils.metrics.IoU(threshold=0.5)
     ]
     pretrained_vgg = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = f'VGG11_BN_{data_source}')
 
@@ -176,10 +175,39 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'clea
     all_models.append(pretrained_vgg)
 
     '''
+    PRETRAINED RESNET
+    '''
+
+    RESULTS = []
+
+    backbone = 'resnet18'
+    encoder_weights = 'imagenet'
+    activation = None
+
+    loss = smp.utils.losses.BCEWithLogitsLoss()
+    metrics = [
+        smp_utils.metrics.IoU(threshold=0.5)
+    ]
+    pretrained_resnet = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = f'RESNET18_{data_source}')
+
+    if TRAIN:
+        pretrained_resnet.run_training(n_epochs)
+
+    '''
+    Evaluate pretrained model
+    '''
+    _ = pretrained_resnet.load() # always load the best model
+    pretrained_resnet.run_testing()
+    _ = update_results(pretrained_resnet, RESULTS, RESULT_PATH)
+
+    if debug:
+        plot_prediction(pretrained_resnet, test_data_loader, device)
+    all_models.append(pretrained_resnet)
+
+    '''
     PRETRAINED MOBILENET
     '''
-    # backbone = 'resnet18'
-    # backbone = 'vgg11_bn'
+
     backbone = 'timm-mobilenetv3_large_100'
     encoder_weights = 'imagenet'
     activation = None
@@ -227,5 +255,5 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'clea
 
 if __name__ == '__main__':
     print('Running modeling.py')
-    RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'clean')
+    RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'ground')
 
