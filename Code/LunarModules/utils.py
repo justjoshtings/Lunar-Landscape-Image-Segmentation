@@ -91,7 +91,7 @@ def do_preprocessing_checks(train_data, train_data_loader, train_img_folder, tra
 
 def update_results(model, RESULTS, RESULT_PATH):
     for metric in model.history.keys():
-        for epoch, val in enumerate(model.history[metric]):
+        for epoch, val in model.history[metric]:
             RESULTS.append([model.name, epoch, metric, val])
 
     if os.path.exists(os.path.join(RESULT_PATH, 'RESULTS.csv')):

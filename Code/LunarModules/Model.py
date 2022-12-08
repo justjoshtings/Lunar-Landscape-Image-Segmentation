@@ -45,22 +45,24 @@ class Block(nn.Module):
         return self.conv2(self.relu(self.conv1(x)))
 
 class Down(nn.Module):
-    def __init__(self):
+    def __init__(self, verbose = False):
         super().__init__()
-        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 16, kernel_size = 3)
+        self.verbose = verbose
+        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 16, kernel_size = 3, padding = "same")
         self.convnorm1 = nn.BatchNorm2d(16)
-        self.conv2 = nn.Conv2d(in_channels = 16, out_channels = 16, kernel_size = 3)
+        self.conv2 = nn.Conv2d(in_channels = 16, out_channels = 16, kernel_size = 3, padding = "same")
 
-        self.conv3 = nn.Conv2d(in_channels = 16, out_channels = 32, kernel_size = 3)
+        self.conv3 = nn.Conv2d(in_channels = 16, out_channels = 32, kernel_size = 3, padding = "same")
         self.convnorm2 = nn.BatchNorm2d(32)
-        self.conv4 = nn.Conv2d(in_channels = 32, out_channels = 32, kernel_size = 3)
+        self.conv4 = nn.Conv2d(in_channels = 32, out_channels = 32, kernel_size = 3, padding = "same")
 
-        self.conv5 = nn.Conv2d(in_channels = 32, out_channels = 64, kernel_size = 3)
+        self.conv5 = nn.Conv2d(in_channels = 32, out_channels = 64, kernel_size = 3, padding = "same")
         self.convnorm3 = nn.BatchNorm2d(64)
-        self.conv6 = nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = 3)
+        self.conv6 = nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = 3, padding = "same")
 
         self.pool = nn.MaxPool2d(kernel_size = 2)
         self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(p = 0.2)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -70,17 +72,33 @@ class Down(nn.Module):
     def forward(self, x):
         ft_maps = []
 
-        x = self.conv2(self.convnorm1(self.relu(self.conv1(x))))
+        x = self.relu(self.conv2(self.relu(self.convnorm1(self.conv1(x)))))
         ft_maps.append(x)
+        if self.verbose:
+            print('size of first FTMP: ', x.shape)
         x = self.pool(x)
+        if self.verbose:
+            print('size after first down block: ', x.shape)
+        x = self.dropout(x)
 
-        x = self.conv4(self.convnorm2(self.relu(self.conv3(x))))
-        ft_maps.append(x)
-        x = self.pool(x)
 
-        x = self.conv6(self.convnorm3(self.relu(self.conv5(x))))
+        x = self.relu(self.conv4(self.relu(self.convnorm2(self.conv3(x)))))
         ft_maps.append(x)
+        if self.verbose:
+            print('size of second FTMP: ', x.shape)
         x = self.pool(x)
+        if self.verbose:
+            print('size after second down block: ', x.shape)
+        x = self.dropout(x)
+
+        x = self.relu(self.conv6(self.relu(self.convnorm3(self.conv5(x)))))
+        ft_maps.append(x)
+        if self.verbose:
+            print('size of third FTMP: ', x.shape)
+        x = self.pool(x)
+        if self.verbose:
+            print('size after third block: ', x.shape)
+        x = self.dropout(x)
 
         return ft_maps
 
@@ -93,16 +111,16 @@ class Up(nn.Module):
         self.conv_trans1 = nn.ConvTranspose2d(in_channels = 64, out_channels = 32, kernel_size = 2, stride = 2)
         self.conv_trans2 = nn.ConvTranspose2d(in_channels = 32, out_channels = 16, kernel_size = 2, stride = 2)
 
-        self.conv1 = nn.Conv2d(in_channels = 64, out_channels = 32, kernel_size = 3)
+        self.conv1 = nn.Conv2d(in_channels = 64, out_channels = 32, kernel_size = 3, padding = "same")
         self.convnorm1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(in_channels = 32, out_channels = 32, kernel_size = 3)
+        self.conv2 = nn.Conv2d(in_channels = 32, out_channels = 32, kernel_size = 3, padding = "same")
 
-        self.conv3 = nn.Conv2d(in_channels = 32, out_channels = 16, kernel_size = 3)
+        self.conv3 = nn.Conv2d(in_channels = 32, out_channels = 16, kernel_size = 3, padding = "same")
         self.convnorm2 = nn.BatchNorm2d(16)
-        self.conv4 = nn.Conv2d(in_channels = 16, out_channels = 16, kernel_size = 3)
+        self.conv4 = nn.Conv2d(in_channels = 16, out_channels = 16, kernel_size = 3, padding = "same")
 
         self.relu = nn.ReLU()
-
+        self.dropout = nn.Dropout(p = 0.2)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
@@ -112,13 +130,20 @@ class Up(nn.Module):
         x = self.conv_trans1(x)
         ft = self.crop(encoder_features[0], x)
         x = torch.cat([x, ft], dim = 1)
-        x = self.conv2(self.convnorm1(self.relu(self.conv1(x)))) # decoder block 1
+        if self.verbose:
+            print('size after first concat: ', x.shape)
+        x = self.dropout(x)
+        x = self.relu(self.conv2(self.relu(self.convnorm1(self.conv1(x))))) # decoder block 1
 
         x = self.conv_trans2(x)
         ft = self.crop(encoder_features[1], x)
         x = torch.cat([x, ft], dim = 1)
-        x = self.conv4(self.convnorm2(self.relu(self.conv3(x)))) # decoder block 2
-
+        if self.verbose:
+            print('size after second concat: ', x.shape)
+        x = self.dropout(x)
+        x = self.relu(self.conv4(self.relu(self.convnorm2(self.conv3(x))))) # decoder block 2
+        if self.verbose:
+            print('final decoder size: ', x.shape)
         return x
 
     def crop(self, enc_ftrs, x):
@@ -131,17 +156,18 @@ class Up(nn.Module):
 class UNet_scratch(nn.Module):
     def __init__(self, num_class = 4, retain_dim = True, out_sz = (256, 256), verbose = False):
         super().__init__()
-        self.encoder = Down()
+        self.encoder = Down(verbose = verbose)
         self.decoder = Up(verbose = verbose)
 
         self.head = nn.Conv2d(in_channels = 16, out_channels = num_class, kernel_size = 1)
         self.retain_dim = retain_dim
         self.out_sz = out_sz
+        self.act = nn.ReLU()
 
     def forward(self, x):
         ft_maps = self.encoder(x)
         out = self.decoder(ft_maps[::-1][0], ft_maps[::-1][1:])
-        out = self.head(out)
+        out = self.act(self.head(out))
 
         if self.retain_dim:
             out = torch.nn.functional.interpolate(out, self.out_sz)
@@ -153,7 +179,7 @@ class Model:
     '''
 
     ## NEED TO ADD THIS
-    def __init__(self, model, loss, opt, scheduler, metrics, random_seed, train_data_loader, val_data_loader, test_data_loader, device, base_loc = None, name = None, log_file=None):
+    def __init__(self, model, loss, opt, scheduler, metrics, random_seed, train_data_loader, val_data_loader, test_data_loader, real_test_data_loader, device, base_loc = None, name = None, log_file=None):
         '''
         Params:
             self: instance of object
@@ -166,17 +192,20 @@ class Model:
         self.train_data_loader = train_data_loader
         self.val_data_loader = val_data_loader
         self.test_data_loader = test_data_loader
+        self.real_test_data_loader = real_test_data_loader
         self.name = name
         self.loss = loss
         self.opt = opt
         self.scheduler = scheduler
         self.history = {
             "train_loss":[],
-            "val_loss":[]
+            "val_loss":[],
+            "test_loss":[]
         }
         for metric in metrics.keys():
             self.history[f'train_{metric}'] = []
             self.history[f'val_{metric}'] = []
+            self.history[f'test_{metric}'] = []
 
         self.metrics = metrics
         self.base_loc = base_loc
@@ -219,9 +248,14 @@ class Model:
                 x_train, y_train = batch[0].to(self.device), batch[1].to(self.device)
                 x_train.requires_grad = True
 
-                self.model.zero_grad()
-                pred = self.model(x_train.float())
+                #self.model.zero_grad()
+                self.opt.zero_grad()
+
+                pred = self.model.forward(x_train.float())
                 loss = self.loss(pred, y_train.float())
+                loss.backward()
+                self.opt.step()
+                lr_scheduler.step()
 
                 pred_soft = torch.softmax(pred, dim = 1)
                 pred_argmax = torch.argmax(pred_soft, dim = 1)
@@ -231,15 +265,11 @@ class Model:
                     m = self.metrics[metric]
                     running_metrics[f'running_train_{metric}'] += m(pred_argmax.cpu(), torch.argmax(torch.softmax(y_train.float(), dim = 1), dim = 1).cpu())
 
-                self.opt.zero_grad()
-                loss.backward()
-                self.opt.step()
-                lr_scheduler.step()
                 progress_bar.update(1)
 
-            self.history["train_loss"].append((running_metrics['running_train_loss']/len(self.train_data_loader)))
+            self.history["train_loss"].append((e, (running_metrics['running_train_loss']/len(self.train_data_loader))))
             for metric in self.metrics.keys():
-                self.history[f'train_{metric}'].append((running_metrics[f'running_train_{metric}'] / len(self.train_data_loader)).numpy())
+                self.history[f'train_{metric}'].append((e, (running_metrics[f'running_train_{metric}'] / len(self.train_data_loader)).numpy()+0))
 
             self.model.eval()
             with torch.no_grad():
@@ -248,23 +278,26 @@ class Model:
                     y_val_pred = self.model(x_val.float())
                     loss = self.loss(y_val_pred, y_val.float())
 
+
                     running_metrics['running_val_loss'] += loss.item()
                     for metric in self.metrics.keys():
                         m = self.metrics[metric]
                         running_metrics[f'running_val_{metric}'] += m(torch.argmax(torch.softmax(y_val_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(torch.softmax(y_val.float(), dim = 1), dim = 1).cpu())
 
-            self.history["val_loss"].append((running_metrics['running_val_loss']/len(self.val_data_loader)))
+            self.history["val_loss"].append((e, (running_metrics['running_val_loss']/len(self.val_data_loader))))
             for metric in self.metrics.keys():
-                self.history[f'val_{metric}'].append((running_metrics[f'running_val_{metric}'] / len(self.train_data_loader)).numpy())
+                self.history[f'val_{metric}'].append((e, (running_metrics[f'running_val_{metric}'] / len(self.val_data_loader)).numpy()+0))
 
             s = f"EPOCH: {e} -- "
             for metric in self.history.keys():
-                s += f"{metric} {self.history[metric][-1]} "
+                if len(self.history[metric])>0:
+                    s += f"{metric} {self.history[metric][-1][1]} "
 
             print(s)
 
-            if self.history[save_on] > best_met:
+            if self.history[save_on][-1][1] > best_met:
                 self.save_model(e)
+                best_met = self.history[save_on][-1][1]
             # Measure how long this epoch took.
             print("")
             training_time = str(dt.timedelta(seconds = int(round((time.time() - t0)))))
@@ -275,8 +308,17 @@ class Model:
         running_metrics = {
             'running_test_loss':0
         }
+
         for metric in self.metrics.keys():
             running_metrics[f'running_test_{metric}'] = 0
+            #running_metrics[f'running_test_{metric}_real'] = 0
+
+        num_training_steps = len(self.test_data_loader)
+        num_training_steps2 = len(self.real_test_data_loader)
+
+        progress_bar = tqdm(range(num_training_steps), desc = 'TESTING: ')
+        #progress_bar2 = tqdm(range(num_training_steps2), desc = 'TESTING REAL: ')
+
 
         self.model.eval()
         with torch.no_grad():
@@ -290,14 +332,30 @@ class Model:
                 for metric in self.metrics.keys():
                     m = self.metrics[metric]
                     running_metrics[f'running_test_{metric}'] += m(torch.argmax(torch.softmax(y_test_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+                progress_bar.update(1)
+
+            # for step, batch in enumerate(self.real_test_data_loader):
+            #     x_test, y_test = batch[0].to(self.device), batch[1].to(self.device)
+            #     y_test_pred = self.model(x_test.float())
+            #     loss = self.loss(y_test_pred, y_test.float())
+            #
+            #     running_metrics['running_test_loss_real'] += loss.item()
+            #     for metric in self.metrics.keys():
+            #         m = self.metrics[metric]
+            #         running_metrics[f'running_test_{metric}_real'] += m(torch.argmax(torch.softmax(y_test_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+            #     progress_bar2.update(1)
 
         s = f"TESTING: "
         for metric in self.metrics.keys():
-            s += f"{metric} {round(running_metrics[f'running_test_{metric}']/len(self.test_data_loader), 4)} "
+            s += f"{metric} {running_metrics[f'running_test_{metric}']/len(self.test_data_loader)} "
+            #s += f"{metric} {running_metrics[f'running_test_{metric}_real'] / len(self.test_data_loader)} "
+
+        self.history[f'test_loss'].append((-1, (running_metrics[f'running_test_loss'] / len(self.test_data_loader))))
+        #self.history[f'real_test_loss'].append((-1, (running_metrics[f'running_test_loss_real'] / len(self.real_test_data_loader))))
 
         for metric in self.metrics.keys():
-            self.history[f'test_{metric}'].append((running_metrics[f'running_test_{metric}'] / len(self.test_data_loader)).numpy())
-
+            self.history[f'test_{metric}'].append((-1, (running_metrics[f'running_test_{metric}'] / len(self.test_data_loader)).numpy()+0))
+            #self.history[f'real_test_{metric}'].append((-1, (running_metrics[f'running_test_{metric}_real'] / len(self.real_test_data_loader)).numpy()+0))
         print(s)
 
 
@@ -312,14 +370,14 @@ class Model:
         metrics = np.unique([m[m.find('_')+1:] for m in metrics])
         fig, axes = plt.subplots(nrows = 1, ncols = len(metrics), figsize = (8,8))
 
-        axes[0].plot(self.history['train_loss'], color = "slategrey", label = "Training Loss")
-        axes[0].plot(self.history['val_loss'], color = "seagreen", label = "Training Loss")
+        axes[0].plot([x[1] for x in self.history['train_loss']], color = "slategrey", label = "Training Loss")
+        axes[0].plot([x[1] for x in self.history['val_loss']], color = "seagreen", label = "Training Loss")
         axes[0].legend()
         axes[0].set_title(f'MODEL: {self.name} LOSS')
 
         for i, ax in enumerate(axes[1:]):
-            ax.plot(self.history[f'train_{metrics[i]}'], color = "slategrey", label = f"Training {metrics[i]}")
-            ax.plot(self.history[f'val_{metrics[i]}'], color = "seagreen", label = f"Training {metrics[i]}")
+            ax.plot([x[1] for x in self.history[f'train_{metrics[i]}']], color = "slategrey", label = f"Training {metrics[i]}")
+            ax.plot([x[1] for x in self.history[f'val_{metrics[i]}']], color = "seagreen", label = f"Training {metrics[i]}")
             ax.legend()
             ax.set_title(f'MODEL: {self.name} {metrics[i]}')
         sns.despine()
@@ -357,7 +415,7 @@ class Pretrained_Model:
         self.backbone = backbone
         self.encoder_weights = encoder_weights
         self.activation = activation
-        self.metrics = metrics
+
         self.LR = LR
         self.train_data_loader = train_data_loader
         self.val_data_loader = val_data_loader
@@ -378,6 +436,9 @@ class Pretrained_Model:
         self.optimizer = SGD(params=self.model.parameters(), lr=self.LR)
 
         self.preprocessing_fn = smp.encoders.get_preprocessing_fn(self.backbone, self.encoder_weights)
+
+        self.metrics = metrics
+        self.history = {}
 
         self.train_epoch = smp_utils.train.TrainEpoch(
             self.model,
@@ -400,7 +461,6 @@ class Pretrained_Model:
         print(f"Training: {self.name}")
         best_val_iou = 0.0
         train_logs_list, valid_logs_list = [], []
-        self.history = {}
 
         if load:
             last_e = self.load_latest_model()
@@ -414,19 +474,20 @@ class Pretrained_Model:
             train_logs = self.train_epoch.run(self.train_data_loader)
             print(train_logs)
             val_logs = self.valid_epoch.run(self.val_data_loader)
+            print(val_logs)
             for key in train_logs.keys():
-                if key in self.history.keys():
-                    self.history[f'train_{key}'].append([train_logs[key]])
+                if f'train_{key}' in self.history.keys():
+                    self.history[f'train_{key}'].append((i, train_logs[key]))
                 else:
-                    self.history[f'train_{key}'] = [train_logs[key]]
+                    self.history[f'train_{key}'] = [(i, train_logs[key])]
             for key in val_logs.keys():
-                if key in self.history.keys():
-                    self.history[f'val_{key}'].append([val_logs[key]])
+                if f'val_{key}' in self.history.keys():
+                    self.history[f'val_{key}'].append((i, val_logs[key]))
                 else:
-                    self.history[f'val_{key}'] = [val_logs[key]]
+                    self.history[f'val_{key}'] = [(i, val_logs[key])]
 
-            if self.history[f'val_iou_score'][-1] > best_val_iou:
-                best_val_iou = self.history[f'val_iou_score'][-1]
+            if self.history[f'val_iou_score'][-1][1] > best_val_iou:
+                best_val_iou = self.history[f'val_iou_score'][-1][1]
                 self.save_model(i)
 
     def save_model(self, epoch):
@@ -445,11 +506,17 @@ class Pretrained_Model:
             device = self.device,
         )
         logs = test_epoch.run(self.test_data_loader)
+        s = f"TESTING: "
         for key in logs.keys():
             if key in self.history.keys():
-                self.history[f'test_{key}'].append([logs[key]])
+                self.history[f'test_{key}'].append((-1, logs[key]))
             else:
-                self.history[f'test_{key}'] = [logs[key]]
+                self.history[f'test_{key}'] = [(-1, logs[key])]
+            s += f' {key}: {self.history[f"test_{key}"][-1][1]}'
+
+        print(s)
+
+
 
     def load(self):
         last_e = self.load_latest_model(self.device)
