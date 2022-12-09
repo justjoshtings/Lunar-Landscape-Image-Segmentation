@@ -27,6 +27,7 @@ from torchvision import models
 import segmentation_models_pytorch as smp
 import segmentation_models_pytorch.utils as smp_utils
 
+
 def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'ground'):
     '''
     Main loop to run modeling code -- called from main function or from command line
@@ -256,4 +257,3 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
 if __name__ == '__main__':
     print('Running modeling.py')
     RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'ground')
-
