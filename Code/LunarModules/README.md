@@ -3,6 +3,15 @@
 ## Description
 All util code
 
+Below is the description of each utility object:
+1. CustomDataLoader.py - A custom built data loader to handle data generator.
+2. ImageProcessor.py - Object to handle all processing of images/data.
+3. KaggleAPI.py - Object to handle connection to Kaggle API to upload and download files.
+4. Logger.py - Object to handle logging.
+5. Model.py - Object to handle modeling methods.
+6. Plotter.py - Object to handle all plotting of images/ground truth masks.
+7. TrainTestSplit.py - Functions to correctly organize dataset.
+
 ### TrainTestSplit.py
 
 This script splits the data and copies all the images into

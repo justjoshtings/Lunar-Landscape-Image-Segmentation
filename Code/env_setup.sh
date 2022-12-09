@@ -17,7 +17,7 @@ cd ./Final-Project-Group5
 # source myenv/bin/activate
 
 # Install python requirements
-# pip3 install -r requirements.txt
+pip3 install -r requirements.txt
 pip3 install kaggle
 
 # Make Log File

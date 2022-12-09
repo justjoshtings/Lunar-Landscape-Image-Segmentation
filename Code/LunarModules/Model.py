@@ -1,6 +1,6 @@
 """
 Model.py
-Object to handle data generators.
+Object to handle modeling methods.
 
 author: @saharae, @justjoshtings
 created: 11/12/2022

@@ -3,18 +3,29 @@
 ## Description
 This directory holds all relevant code for data acquisition, preprocessing, model building/training, and evaluation.
 
+Below is the description of each script:
+1. env_setup.sh - runs environment setup and installs needed software
+2. EDA.py - Runs the preprocessing and collection of meta data of the images in order to plot EDA images.
+3. EDA_figures.ipynb - Jupyter notebook with EDA figures.
+4. kaggle_download.py - Downloads data from Kaggle.
+5. modeling.py - Executes modeling.
+6. LunarModules/CustomDataLoader.py - A custom built data loader to handle data generator.
+7. LunarModules/ImageProcessor.py - Object to handle all processing of images/data.
+8. LunarModules/KaggleAPI.py - Object to handle connection to Kaggle API to upload and download files.
+8. LunarModules/Logger.py - Object to handle logging.
+9. LunarModules/Model.py - Object to handle modeling methods.
+10. LunarModules/Plotter.py - Object to handle all plotting of images/ground truth masks.
+11. LunarModules/TrainTestSplit.py - Functions to correctly organize dataset.
+
+
 # <a name="app-execution"></a>
 ## App Execution
 
-After cloning the repo, navigate to the Code folder and set permissions for 4 bash scripts.
+After cloning the repo, navigate to the Code folder and set permissions for the bash scripts.
 ```
 cd Final-Project-Group5/Code/
 chmod u+x env_setup.sh
 ```
-Below is the description of each script:
-1. env_setup.sh - runs environment setup and installs needed software
-2. EDA.py - Runs the preprocessing and collection of meta data of the images in order to plot EDA images.
-3. EDA_figures.ipynb - Jupyter notebook with EDA figures
 
 Next, you can either download data from Kaggle manually or setup Kaggle API credentials to download through a prepared script. See [data download](https://github.com/justjoshtings/Final-Project-Group5/blob/main/Code/README.md#data-download) section for more details on both options.
 
@@ -53,16 +64,47 @@ mv /home/ubuntu/Final-Project-Group5/Code/kaggle.json ~/.kaggle/kaggle.json
 chmod 600 ~/.kaggle/kaggle.json
 ```
 
-## EDA 
+## Main Script
+
+The main script carries out the following subroutines.
+
+INSERT MAIN SCRIPT HERE
+
+## Subroutines
+The following subroutines are executed within the main script but can also be executed individually using the following execution commands.
+
+### Kaggle Download 
+Download from Kaggle the dataset.
+```
+cd Final-Project-Group5/Code/
+python3 kaggle_download.py
+```
+
+### EDA 
 
 Make sure all previous steps are completed first (data download/env setup)
 1. Run the EDA python script first (this only needs to be run once). It will take a few minutes.
 ```
+cd Final-Project-Group5/Code/
 python3 EDA.py
 ```
 
 2. You can now run and edit the Jupyter notebook as desired. Make sure you're in the directory with the notebook 
    then run
 ```
+cd Final-Project-Group5/Code/
 jupyter notebook
+```
+
+### Split Data
+```
+cd Final-Project-Group5/Code/LunarModules
+python3 TrainTestSplit.py
+```
+
+### Modeling and Evaluation 
+Modeling and evaluation can be executed using:
+```
+cd Final-Project-Group5/Code/
+python3 modeling.py
 ```
