@@ -1,3 +1,10 @@
+"""
+results_viz.py
+Script to plot results
+
+author: @saharae, @justjoshtings
+created: 12/09/2022
+"""
 import os
 
 import pandas as pd

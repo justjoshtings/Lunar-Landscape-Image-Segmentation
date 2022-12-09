@@ -11,6 +11,7 @@ Below is the description of each utility object:
 5. Model.py - Object to handle modeling methods.
 6. Plotter.py - Object to handle all plotting of images/ground truth masks.
 7. TrainTestSplit.py - Functions to correctly organize dataset.
+8. utils.py - Utility functions to help with programs.
 
 ### TrainTestSplit.py
 

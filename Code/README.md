@@ -9,13 +9,15 @@ Below is the description of each script:
 3. EDA_figures.ipynb - Jupyter notebook with EDA figures.
 4. kaggle_download.py - Downloads data from Kaggle.
 5. modeling.py - Executes modeling.
-6. LunarModules/CustomDataLoader.py - A custom built data loader to handle data generator.
-7. LunarModules/ImageProcessor.py - Object to handle all processing of images/data.
-8. LunarModules/KaggleAPI.py - Object to handle connection to Kaggle API to upload and download files.
-8. LunarModules/Logger.py - Object to handle logging.
-9. LunarModules/Model.py - Object to handle modeling methods.
-10. LunarModules/Plotter.py - Object to handle all plotting of images/ground truth masks.
-11. LunarModules/TrainTestSplit.py - Functions to correctly organize dataset.
+6. results_viz.py - Script to plot results.
+7. LunarModules/CustomDataLoader.py - A custom built data loader to handle data generator.
+8. LunarModules/ImageProcessor.py - Object to handle all processing of images/data.
+9. LunarModules/KaggleAPI.py - Object to handle connection to Kaggle API to upload and download files.
+10. LunarModules/Logger.py - Object to handle logging.
+11. LunarModules/Model.py - Object to handle modeling methods.
+12. LunarModules/Plotter.py - Object to handle all plotting of images/ground truth masks.
+13. LunarModules/TrainTestSplit.py - Functions to correctly organize dataset.
+14. LunarModules/utils.py - Utility functions to help with programs.
 
 
 # <a name="app-execution"></a>
