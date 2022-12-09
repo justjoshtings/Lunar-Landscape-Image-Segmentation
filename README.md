@@ -52,7 +52,12 @@ Lunar Landscape Imagery Segmentation
 - [X] EDA - 11/11/2022
 - [X] Start Model Training - 11/18/2022
 - [ ] Final Model - 12/02/2022
+- [ ] Google Drive Models Download
+- [ ] Main Script with option to run saved model or train from scratch
+- [ ] Finalize README
+- [ ] Test On Clean EC2
 - [ ] Final Report - 12/12/2022
+- [ ] Individual Reports
 - [ ] Final Presentation - 12/12/2022
 
 # <a name="topic_proposal"></a>
