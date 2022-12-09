@@ -26,21 +26,27 @@ Lunar Landscape Imagery Segmentation
 # <a name="instructions"></a>
 ## How to Run
 1. Clone this repo
-2. Setup Env and Credentials
-    After cloning the repo, navigate to the Code folder and set permissions for the following bash script.
+2. Install python packages. After cloning the repo and download python packages.
     ```
     cd Final-Project-Group5/Code/
-    chmod u+x env_setup.sh
+    pip install -r requirements.txt
+    ```
+4. Execute Main Script with options...
+
+    Test
+    ```
+    python3 main --method test
     ```
 
-    Next, you can either download data from Kaggle manually or setup Kaggle API credentials to download through a prepared script. See [data download](https://github.com/justjoshtings/Final-Project-Group5/blob/main/Code/README.md#data-download) section for more details on both options. We recommend downloading through the Kaggle API.
+    Train
+    ```
+    python3 main --method train
+    ```
 
-    Next, run the env_setup.sh script.
+    Debug
     ```
-    cd Final-Project-Group5/Code/
-    ./env_setup.sh
+    python3 main --method debug
     ```
-3. Execute Main Script...
 
 # <a name="structure"></a>
 ## Folder Structure
@@ -66,7 +72,8 @@ Lunar Landscape Imagery Segmentation
 - [X] EDA - 11/11/2022
 - [X] Start Model Training - 11/18/2022
 - [ ] Final Model and Results - 12/02/2022
-- [ ] Google Drive Models Download
+- [X] Google Drive Models Download
+- [ ] Google Drive Data Download
 - [ ] Main Script with option to run saved model or train from scratch
 - [X] Freeze requirements.txt
 - [ ] Finalize README
