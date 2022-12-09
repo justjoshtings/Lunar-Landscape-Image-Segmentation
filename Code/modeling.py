@@ -233,13 +233,13 @@ lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, n
 
 model = Model(Unet, loss = lossBCE, opt = opt, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, device = device, base_loc = BASE_PATH, name = "Unet_scratch_ground", log_file=None)
 
-if training_mode:
-    print('not training scratch model rn')
-    model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
-    RESULTS = update_results(model, RESULTS, RESULT_PATH)
-    model.plot_train(save_loc = RESULT_PATH)
-else:
-    last_epoch = model.load() # only if not training
+# if training_mode:
+#     print('not training scratch model rn')
+#     model.run_training(n_epochs = n_epochs, device = device, save_every = 2, load = True)
+#     RESULTS = update_results(model, RESULTS, RESULT_PATH)
+#     # model.plot_train(save_loc = RESULT_PATH)
+# else:
+#     last_epoch = model.load() # only if not training
 
 #plot_prediction(model, test_data_loader)
 
@@ -261,8 +261,8 @@ RESULTS = []
 # RESULTS = update_results(model, RESULTS, RESULT_PATH)
 
 # backbone = 'resnet18'
-# backbone = 'vgg11_bn'
-backbone = 'timm-mobilenetv3_large_100'
+backbone = 'vgg11_bn'
+# backbone = 'timm-mobilenetv3_large_100'
 encoder_weights = 'imagenet'
 activation = None
 
@@ -270,7 +270,7 @@ loss = smp.utils.losses.BCEWithLogitsLoss()
 metrics = [
     smp_utils.metrics.IoU(threshold=0.5),
 ]
-pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'mobilenetv3_large_100')
+pretrained = Pretrained_Model(backbone = backbone, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = LR, loss = loss, device = device, base_loc = BASE_PATH, name = 'vgg11_bn')
 
 n_epochs = 20
 
