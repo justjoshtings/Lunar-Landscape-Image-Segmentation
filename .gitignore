@@ -12,6 +12,7 @@ __pycache__/
 *Data/
 *Lunar_Log/
 *myenv/
+*Models/
 
 # Distribution / packaging
 .Python

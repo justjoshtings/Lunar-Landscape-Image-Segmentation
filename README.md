@@ -30,24 +30,30 @@ Lunar Landscape Imagery Segmentation
 
 # <a name="structure"></a>
 ## Folder Structure
-- Code: This folder contains all the final code for the project. To run this project navigate to this folder.
-- Final-Group-Presentation: This folder contains the presentation we will be giving in class on 12/06/21.
-- Final-Group-Project-Report: This folder contains the final report we will be turning in describing the project and
- results.
-- Group-Proposal: This folder contains the initial proposal for our project
-- results: This folder contains results from the models we tuned. The GUI pulls from this folder.
-- *-individual-project: These folders contain the individual code and report for each team member.
+```
+.
+├── Code                                # Final code for the project, navigate here to run.
+│   ├── LunarModules                    # Modules to support codebase
+│   ├── plots                           # Plots folder to save plots
+├── Final-Group-Presentation            # Presentation Slides PDF
+├── Final-Group-Presentation            # Final Report
+├── Group-Proposal                      # Group Proposal Report
+├── joshua-ting-individual-project      # Individual report - Josh
+├── sahara-ensley-individual-project    # Individual report - Sahara
+├── Results                             # This folder contains results from the models we tuned. The GUI pulls from this folder.
+│ 
+└── requirements.txt        # Python package requirements
+```
 
 # <a name="timeline"></a>
 ## Timeline
 - [X] Proposal - 11/8/2022
-- [ ] Environment Setup - 11/8/2022
-- [ ] EDA - 11/11/2022
-- [ ] Start Model Training - 11/18/2022
+- [X] Environment Setup - 11/8/2022
+- [X] EDA - 11/11/2022
+- [X] Start Model Training - 11/18/2022
 - [ ] Final Model - 12/02/2022
 - [ ] Final Report - 12/12/2022
 - [ ] Final Presentation - 12/12/2022
-- [ ] Final Model - 12/02/2022
 
 # <a name="topic_proposal"></a>
 ## Topic Proposal
@@ -59,11 +65,11 @@ Lunar Landscape Imagery Segmentation
 
 # <a name="presentation"></a>
 ## Presentation
-* [Google Slides Presentation]()
+* [Google Slides Presentation](https://docs.google.com/presentation/d/1N0azL_rzTkx4bbQPJFXbIkvIjRVbqXGzX1lXuviBQzU/edit?usp=sharing)
 
 # <a name="report"></a>
 ## Report
-* [Final Report Google Doc]()
+* [Final Report Google Doc](https://docs.google.com/document/d/1w5YAu1uEHxkzkeqVPvH7H5MKZHtm0U8PbnMYADZHXp4/edit?usp=sharing)
 
 # <a name="references"></a>
 ## References
