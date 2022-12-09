@@ -21,7 +21,7 @@ Below is the description of each script:
 # <a name="app-execution"></a>
 ## App Execution
 
-After cloning the repo, navigate to the Code folder and set permissions for the bash scripts.
+After cloning the repo, navigate to the Code folder and set permissions for the following bash script.
 ```
 cd Final-Project-Group5/Code/
 chmod u+x env_setup.sh
