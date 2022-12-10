@@ -110,13 +110,16 @@ def plot_prediction(model, test_data_loader, device):
         if step == 0:
             x_test, y_test = batch[0], batch[1]
             y_pred = model.model(x_test.to(device))
-            print(f'TEST: {y_test.shape}', y_test)
-            print(f'PRED: {y_pred.shape}', y_pred)
+            # print(f'TEST: {y_test.shape}', y_test)
+            # print(f'PRED: {y_pred.shape}', y_pred)
             np.save('y_test_batch.npy', y_test.cpu().detach().numpy())
             np.save('y_pred_batch.npy', y_pred.cpu().detach().numpy())
 
-            y_pred_OHE = torch.softmax(y_pred, dim = 1)
-            print(f'PRED OHE: {y_pred_OHE.shape}', y_pred_OHE)
+            if 'scratch' not in model.name:
+                y_pred_OHE = torch.softmax(y_pred, dim = 1)
+            else:
+                y_pred_OHE = y_pred
+            #print(f'PRED OHE: {y_pred_OHE.shape}', y_pred_OHE)
 
             y_pred_reorder = y_pred_OHE.permute(0, 2, 3, 1)
             y_test_reorder = y_test.permute(0, 2, 3, 1)
@@ -125,8 +128,12 @@ def plot_prediction(model, test_data_loader, device):
             img = x_test_reorder.cpu().detach().numpy()[10]
             img_processor = ImageProcessor()
 
-            predicted_image_decoded = img_processor.reverse_one_hot_encode(y_pred_reorder.cpu().detach().numpy()[10])
-            predicted_image_decoded_mask = img_processor.reverse_one_hot_encode(y_test_reorder.cpu().detach().numpy()[10])
+            argmaxed_pred = img_processor.mask_argmax(y_pred_reorder.cpu().detach().numpy()[10])
+            argmaxed_test = y_test_reorder.cpu().detach().numpy()[10]
+
+            predicted_image_decoded = img_processor.reverse_one_hot_encode(argmaxed_pred)
+            predicted_image_decoded_mask = img_processor.reverse_one_hot_encode(argmaxed_test)
+
             fig, axes = plt.subplots(nrows = 1, ncols = 3, figsize = (10, 8))
 
             axes[0].imshow(predicted_image_decoded)

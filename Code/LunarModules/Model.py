@@ -34,16 +34,6 @@ import segmentation_models_pytorch as smp
 import segmentation_models_pytorch.utils as smp_utils
 from torch.optim import Adam, AdamW, SGD
 
-class Block(nn.Module):
-    def __init__(self, in_ch, out_ch):
-        super().__init__()
-        self.conv1 = nn.Conv2d(in_ch, out_ch, 3)
-        self.relu = nn.ReLU()
-        self.conv2 = nn.Conv2d(out_ch, out_ch, 3)
-
-    def forward(self, x):
-        return self.conv2(self.relu(self.conv1(x)))
-
 class Down(nn.Module):
     def __init__(self, verbose = False):
         super().__init__()
@@ -162,7 +152,7 @@ class UNet_scratch(nn.Module):
         self.head = nn.Conv2d(in_channels = 16, out_channels = num_class, kernel_size = 1)
         self.retain_dim = retain_dim
         self.out_sz = out_sz
-        self.act = nn.ReLU()
+        self.act = nn.Softmax(dim = 1)
 
     def forward(self, x):
         ft_maps = self.encoder(x)
@@ -246,9 +236,10 @@ class Model:
 
             for step, batch in enumerate(self.train_data_loader):
                 x_train, y_train = batch[0].to(self.device), batch[1].to(self.device)
+
                 x_train.requires_grad = True
 
-                #self.model.zero_grad()
+                self.model.zero_grad()
                 self.opt.zero_grad()
 
                 pred = self.model.forward(x_train.float())
@@ -257,13 +248,13 @@ class Model:
                 self.opt.step()
                 lr_scheduler.step()
 
-                pred_soft = torch.softmax(pred, dim = 1)
-                pred_argmax = torch.argmax(pred_soft, dim = 1)
+                #pred_soft = torch.softmax(pred, dim = 1)
+                pred_argmax = torch.argmax(pred, dim = 1)
 
                 running_metrics['running_train_loss'] += loss.item()
                 for metric in self.metrics.keys():
                     m = self.metrics[metric]
-                    running_metrics[f'running_train_{metric}'] += m(pred_argmax.cpu(), torch.argmax(torch.softmax(y_train.float(), dim = 1), dim = 1).cpu())
+                    running_metrics[f'running_train_{metric}'] += m(pred_argmax.cpu(), torch.argmax(y_train.float(), dim = 1).cpu())
 
                 progress_bar.update(1)
 
@@ -275,6 +266,8 @@ class Model:
             with torch.no_grad():
                 for step, batch in enumerate(self.val_data_loader):
                     x_val, y_val = batch[0].to(self.device), batch[1].to(self.device)
+
+
                     y_val_pred = self.model(x_val.float())
                     loss = self.loss(y_val_pred, y_val.float())
 
@@ -282,7 +275,7 @@ class Model:
                     running_metrics['running_val_loss'] += loss.item()
                     for metric in self.metrics.keys():
                         m = self.metrics[metric]
-                        running_metrics[f'running_val_{metric}'] += m(torch.argmax(torch.softmax(y_val_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(torch.softmax(y_val.float(), dim = 1), dim = 1).cpu())
+                        running_metrics[f'running_val_{metric}'] += m(torch.argmax(y_val_pred.float(), dim = 1).cpu(), torch.argmax(y_val.float(), dim = 1).cpu())
 
             self.history["val_loss"].append((e, (running_metrics['running_val_loss']/len(self.val_data_loader))))
             for metric in self.metrics.keys():
@@ -314,7 +307,7 @@ class Model:
             #running_metrics[f'running_test_{metric}_real'] = 0
 
         num_training_steps = len(self.test_data_loader)
-        num_training_steps2 = len(self.real_test_data_loader)
+        #num_training_steps2 = len(self.real_test_data_loader)
 
         progress_bar = tqdm(range(num_training_steps), desc = 'TESTING: ')
         #progress_bar2 = tqdm(range(num_training_steps2), desc = 'TESTING REAL: ')
@@ -325,37 +318,44 @@ class Model:
 
             for step, batch in enumerate(self.test_data_loader):
                 x_test, y_test = batch[0].to(self.device), batch[1].to(self.device)
+
+
                 y_test_pred = self.model(x_test.float())
                 loss = self.loss(y_test_pred, y_test.float())
 
                 running_metrics['running_test_loss'] += loss.item()
                 for metric in self.metrics.keys():
                     m = self.metrics[metric]
-                    running_metrics[f'running_test_{metric}'] += m(torch.argmax(torch.softmax(y_test_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+                    running_metrics[f'running_test_{metric}'] += m(torch.argmax(y_test_pred.float(), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
                 progress_bar.update(1)
 
+            # count = 0
             # for step, batch in enumerate(self.real_test_data_loader):
-            #     x_test, y_test = batch[0].to(self.device), batch[1].to(self.device)
-            #     y_test_pred = self.model(x_test.float())
-            #     loss = self.loss(y_test_pred, y_test.float())
+            #     try:
+            #         x_test, y_test = batch[0].to(self.device), batch[1].to(self.device)
+            #         y_test_pred = self.model(x_test.float())
+            #         loss = self.loss(y_test_pred, y_test.float())
             #
-            #     running_metrics['running_test_loss_real'] += loss.item()
-            #     for metric in self.metrics.keys():
-            #         m = self.metrics[metric]
-            #         running_metrics[f'running_test_{metric}_real'] += m(torch.argmax(torch.softmax(y_test_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+            #         running_metrics['running_test_loss_real'] += loss.item()
+            #         for metric in self.metrics.keys():
+            #             m = self.metrics[metric]
+            #             running_metrics[f'running_test_{metric}_real'] += m(torch.argmax(torch.softmax(y_test_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+            #         count+=1
+            #     except Exception as err:
+            #         print('issue with real test image, skipping -- ', err)
             #     progress_bar2.update(1)
 
         s = f"TESTING: "
         for metric in self.metrics.keys():
             s += f"{metric} {running_metrics[f'running_test_{metric}']/len(self.test_data_loader)} "
-            #s += f"{metric} {running_metrics[f'running_test_{metric}_real'] / len(self.test_data_loader)} "
+            #s += f"{metric} {running_metrics[f'running_test_{metric}_real'] / count} "
 
         self.history[f'test_loss'].append((-1, (running_metrics[f'running_test_loss'] / len(self.test_data_loader))))
-        #self.history[f'real_test_loss'].append((-1, (running_metrics[f'running_test_loss_real'] / len(self.real_test_data_loader))))
+        #self.history[f'real_test_loss'].append((-1, (running_metrics[f'running_test_loss_real'] / count)))
 
         for metric in self.metrics.keys():
             self.history[f'test_{metric}'].append((-1, (running_metrics[f'running_test_{metric}'] / len(self.test_data_loader)).numpy()+0))
-            #self.history[f'real_test_{metric}'].append((-1, (running_metrics[f'running_test_{metric}_real'] / len(self.real_test_data_loader)).numpy()+0))
+            #self.history[f'real_test_{metric}'].append((-1, (running_metrics[f'running_test_{metric}_real'] / count).numpy()+0))
         print(s)
 
 
@@ -411,7 +411,7 @@ class Model:
 
 class Pretrained_Model:
 
-    def __init__(self, backbone, encoder_weights, activation, metrics, LR, loss, device, train_data_loader, val_data_loader, test_data_loader, base_loc, name = None):
+    def __init__(self, backbone, encoder_weights, activation, metrics, LR, loss, device, train_data_loader, val_data_loader, test_data_loader, real_test_data_loader, base_loc, name = None):
         self.backbone = backbone
         self.encoder_weights = encoder_weights
         self.activation = activation
@@ -420,6 +420,7 @@ class Pretrained_Model:
         self.train_data_loader = train_data_loader
         self.val_data_loader = val_data_loader
         self.test_data_loader = test_data_loader
+        self.real_test_data_loader = real_test_data_loader
 
         self.loss = loss
         self.device = device
@@ -433,7 +434,7 @@ class Pretrained_Model:
                     activation=self.activation,
                 )
 
-        self.optimizer = SGD(params=self.model.parameters(), lr=self.LR)
+        self.optimizer = SGD(params=self.model.parameters(), lr=self.LR, momentum = 0.9)
 
         self.preprocessing_fn = smp.encoders.get_preprocessing_fn(self.backbone, self.encoder_weights)
 
@@ -463,7 +464,7 @@ class Pretrained_Model:
         train_logs_list, valid_logs_list = [], []
 
         if load:
-            last_e = self.load_latest_model()
+            last_e = self.load_latest_model(self.device)
             print(f'Picking up from epoch: {last_e}')
         else:
             last_e = 0
@@ -514,6 +515,14 @@ class Pretrained_Model:
                 self.history[f'test_{key}'] = [(-1, logs[key])]
             s += f' {key}: {self.history[f"test_{key}"][-1][1]}'
 
+        # logs_real = test_epoch.run(self.real_test_data_loader)
+        # s = f"TESTING REAL: "
+        # for key in logs_real.keys():
+        #     if key in self.history.keys():
+        #         self.history[f'real_test_{key}'].append((-1, logs_real[key]))
+        #     else:
+        #         self.history[f'real_test_{key}'] = [(-1, logs_real[key])]
+        #     s += f' {key}: {self.history[f"real_test_{key}"][-1][1]}'
         print(s)
 
 
