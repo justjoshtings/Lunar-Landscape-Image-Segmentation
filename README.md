@@ -4,6 +4,8 @@
 ## Project
 Lunar Landscape Imagery Segmentation 
 
+![sample_diagram](https://github.com/justjoshtings/Final-Project-Group5/blob/main/Code/plots/predictions/main_predictions/render_test_VGG11_BN_Ground/render7871.png)
+
 ## Table of Contents
 1. [Team Members](#team_members)
 2. [How to Run](#instructions)
@@ -24,30 +26,61 @@ Lunar Landscape Imagery Segmentation
 # <a name="instructions"></a>
 ## How to Run
 1. Clone this repo
-2. Navigate to the Code folder and install the requirements.txt file  
-    `pip install -r requirements.txt`
-3. ...
+2. Install python packages. After cloning the repo and download python packages.
+    ```
+    cd Final-Project-Group5/Code/
+    pip install -r requirements.txt
+    ```
+4. Execute Main Script with options...
+
+    Test
+    ```
+    python3 main --method test
+    ```
+
+    Train
+    ```
+    python3 main --method train
+    ```
+
+    Debug
+    ```
+    python3 main --method debug
+    ```
 
 # <a name="structure"></a>
 ## Folder Structure
-- Code: This folder contains all the final code for the project. To run this project navigate to this folder.
-- Final-Group-Presentation: This folder contains the presentation we will be giving in class on 12/06/21.
-- Final-Group-Project-Report: This folder contains the final report we will be turning in describing the project and
- results.
-- Group-Proposal: This folder contains the initial proposal for our project
-- results: This folder contains results from the models we tuned. The GUI pulls from this folder.
-- *-individual-project: These folders contain the individual code and report for each team member.
+```
+.
+├── Code                                # Final code for the project, navigate here to run.
+│   ├── LunarModules                    # Modules to support codebase
+│   ├── plots                           # Plots folder to save plots
+├── Final-Group-Presentation            # Presentation Slides PDF
+├── Final-Group-Presentation            # Final Report
+├── Group-Proposal                      # Group Proposal Report
+├── joshua-ting-individual-project      # Individual report - Josh
+├── sahara-ensley-individual-project    # Individual report - Sahara
+├── Results                             # This folder contains results from the models we tuned. The GUI pulls from this folder.
+│ 
+└── requirements.txt        # Python package requirements
+```
 
 # <a name="timeline"></a>
 ## Timeline
 - [X] Proposal - 11/8/2022
-- [ ] Environment Setup - 11/8/2022
-- [ ] EDA - 11/11/2022
-- [ ] Start Model Training - 11/18/2022
-- [ ] Final Model - 12/02/2022
+- [X] Environment Setup - 11/8/2022
+- [X] EDA - 11/11/2022
+- [X] Start Model Training - 11/18/2022
+- [ ] Final Model and Results - 12/02/2022
+- [X] Google Drive Models Download
+- [ ] Google Drive Data Download
+- [ ] Main Script with option to run saved model or train from scratch
+- [X] Freeze requirements.txt
+- [ ] Finalize README
+- [ ] Test On Clean EC2
 - [ ] Final Report - 12/12/2022
+- [ ] Individual Reports/Code
 - [ ] Final Presentation - 12/12/2022
-- [ ] Final Model - 12/02/2022
 
 # <a name="topic_proposal"></a>
 ## Topic Proposal
@@ -59,16 +92,28 @@ Lunar Landscape Imagery Segmentation
 
 # <a name="presentation"></a>
 ## Presentation
-* [Google Slides Presentation]()
+* [Google Slides Presentation](https://docs.google.com/presentation/d/1N0azL_rzTkx4bbQPJFXbIkvIjRVbqXGzX1lXuviBQzU/edit?usp=sharing)
 
 # <a name="report"></a>
 ## Report
-* [Final Report Google Doc]()
+* [Final Report Google Doc](https://docs.google.com/document/d/1w5YAu1uEHxkzkeqVPvH7H5MKZHtm0U8PbnMYADZHXp4/edit?usp=sharing)
 
 # <a name="references"></a>
 ## References
 * [Jonathan Long et. al (2014) - Fully Convolutional Networks for Semantic Segmentation](https://arxiv.org/abs/1411.4038)
 * [Ronneberger et. al (2015) - UNet: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/abs/1505.04597v1)
+*[Artificial Lunar Landscape Dataset on Kaggle](https://www.kaggle.com/datasets/romainpessia/artificial-lunar-rocky-landscape-dataset)
+* [Lunar Surface Image - thespaceacademy.org](http://www.thespaceacademy.org/2017/10/here-is-your-best-chance-to-explore.html)
+* [An Overview of Semantic Segmentation](https://www.jeremyjordan.me/semantic-segmentation/)
+* [Stanford CS231: Detection and Segmentation](http://cs231n.stanford.edu/slides/2017/cs231n_2017_lecture11.pdf)
+* [Kaggle - Artificial Lunar Landscape Dataset](https://www.kaggle.com/datasets/romainpessia/artificial-lunar-rocky-landscape-dataset)
+* [Kaggle - Artificial Lunar Landscape Dataset - Silver Notebook](https://www.kaggle.com/code/basu369victor/transferlearning-and-unet-to-segment-rocks-on-moon)
+* [Jaccard Index](https://deepai.org/machine-learning-glossary-and-terms/jaccard-index)
+* [Understanding and Visualizing ResNets](https://towardsdatascience.com/understanding-and-visualizing-resnets-442284831be8)
+* [Architecture and Implementation of VGG16](https://towardsai.net/p/machine-learning/the-architecture-and-implementation-of-vgg-16)
+* [MobileNet v3](https://towardsdatascience.com/everything-you-need-to-know-about-mobilenetv3-and-its-comparison-with-previous-versions-a5d5e5a6eeaa)
+* [Metrics to Evaluate Semantic Segmentation](https://towardsdatascience.com/metrics-to-evaluate-your-semantic-segmentation-model-6bcb99639aa2)
+* [Cross Entropy Loss](https://medium.com/unpackai/cross-entropy-loss-in-ml-d9f22fc11fe0)
 
 # <a name="license"></a>
 ## Licensing

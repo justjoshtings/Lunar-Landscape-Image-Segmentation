@@ -13,9 +13,9 @@ CODE_PATH = os.getcwd()
 os.chdir('..')
 BASE_PATH = os.getcwd()
 os.chdir(CODE_PATH)
-DATA_PATH = os.path.join(BASE_PATH, 'Data')
+DATA_PATH = os.path.join(BASE_PATH, 'Data_test')
 
-def main():
+def kaggle_download():
     kaggle_dataset_owner = 'romainpessia'
     path_to_data = DATA_PATH
     data_url_end_point = 'artificial-lunar-rocky-landscape-dataset'
@@ -27,4 +27,4 @@ def main():
 
 if __name__ == "__main__":
     print("Executing kaggle_download.py")
-    main()
+    kaggle_download()

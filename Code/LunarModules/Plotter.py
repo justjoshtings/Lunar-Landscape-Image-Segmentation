@@ -1,6 +1,6 @@
 """
 Plotter.py
-Object to handle all processing of images/data.
+Object to handle all plotting of images/ground truth masks.
 
 author: @saharae, @justjoshtings
 created: 11/12/2022

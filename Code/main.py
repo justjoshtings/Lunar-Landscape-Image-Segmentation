@@ -44,6 +44,12 @@ if __name__ == '__main__':
         debug = True
         plot = True
 
+    # download data from google drive
+    # download trained models from google drive
+    # do EDA
+    # do traintestsplit
+
+    # Run Modeling and Evaluation
     RUN_MODEL_LOOP(TRAIN = TRAIN, debug = debug, plot = plot)
     print("EXITING")
 

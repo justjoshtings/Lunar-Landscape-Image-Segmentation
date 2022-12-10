@@ -18,8 +18,6 @@ from LunarModules.Plotter import Plotter
 import torch, gc
 from torch.utils.data import Dataset, DataLoader
 
-# WILL NEED TO CLEAN THIS WHOLE MESS UP LATER!!!
-
 class CustomDataLoader:
     '''
     Object to handle data generator.
@@ -75,8 +73,8 @@ class CustomDataLoader:
 			self: instance of object
 			idx (int): index of iteration
 		Returns:
-			input_ids (pt tensors): encoded text as tensors
-			attn_masks (pt tensors): attention masks as tensors
+			img_tensor (pt tensors): processed image as tensors
+			mask_tensor (pt tensors): processed masks as tensors
 		'''
         images = self.images_list[idx]
         masks = self.masks_list[idx]
@@ -110,7 +108,7 @@ class CustomDataLoader:
         if self.augmentation:
             img_loaded, mask_loaded = img_mask_processor.data_augmentation(img_loaded, mask_loaded)
 
-        # check_plotter.peek_images(sample_images=img_loaded,sample_masks=mask_loaded,file_name='current_test_2.png')
+        check_plotter.peek_images(sample_images=img_loaded,sample_masks=mask_loaded,file_name=f'current_test_2.png')
 
         #Pre-processing steps
         img_loaded = img_mask_processor.preprocessor_images(img_loaded)
