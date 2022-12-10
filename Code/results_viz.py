@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+from LunarModules.Model import *
 
 CODE_PATH = os.getcwd()
 os.chdir('..')
@@ -25,6 +26,7 @@ loss = res[res.metric.isin(['train_loss', 'val_loss'])]
 sns.lineplot(data = loss, x = 'epoch', y = 'value', hue = 'metric')
 plt.show()
 
-loss = res[res.metric.isin(['train_bce_with_logits_loss', 'val_bce_with_logits_loss'])]
+loss = res[res.metric.isin(['train_cross_entropy_loss', 'val_cross_entropy_loss'])]
 sns.relplot(data = loss, x = 'epoch', y = 'value', hue = 'model_name', col = 'metric', kind = 'line')
 plt.show()
+
