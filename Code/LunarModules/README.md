@@ -37,6 +37,6 @@ the 'ground' images as the mask data.\
 **In Code**:
 ```python3
 from LunarModules.TrainTestSplit import *
-run(SOURCE='clean', RESPLIT=True)
+run_datasplit(SOURCE='clean', RESPLIT=True)
 ```
 would perform the same action as running from the command line.

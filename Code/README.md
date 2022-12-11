@@ -28,20 +28,31 @@ Below is the description of each script:
 
 ## Main Script
 
-The main script carries out the following subroutines. Execute Main Script with options...
-Test
+The main script carries out the following subroutines. Execute Main Script with options...  
+Test (~10 minutes): This will skip any of the training and run the testing loops with the models downloaded from Google 
+Drive
 ```
-python3 main --method test
-```
-
-Train
-```
-python3 main --method train
+python3 main.py --method 'test'
 ```
 
-Debug
+Train (~10 hours): This will run the full training loops, overwriting the downloaded Models (if any) and then test the 
+results.
 ```
-python3 main --method debug
+python3 main.py --method 'train'
+```
+
+Debug (~10 hours): This will run the training loops along with any debugging code, this includes checks for the data 
+loaders and 
+plotting outputs between models in addition to at the end of the loops.
+```
+python3 main.py --method 'debug'
+```
+
+EDA (additional 10+ minutes): Running with EDA set to True will run the EDA python script before any modeling code, 
+this will allow the EDA notebook to be executed without errors. If you don't want to execute the EDA notebook then 
+this argument should be left out as the default is False.
+```
+python3 main.py --method 'test' --EDA True
 ```
 
 ## Subroutines

@@ -33,20 +33,31 @@ Lunar Landscape Imagery Segmentation
     ```
 4. Execute Main Script with options...
 
-    Test
-    ```
-    python3 main --method test
-    ```
-
-    Train
-    ```
-    python3 main --method train
-    ```
-
-    Debug
-    ```
-    python3 main --method debug
-    ```
+   **Test (~10 minutes):** This will skip any of the training and run the testing loops with the models downloaded from Google 
+   Drive
+   ```
+   python3 main.py --method 'test'
+   ```
+   
+   **Train (~10 hours):** This will run the full training loops, overwriting the downloaded Models (if any) and then test the 
+   results.
+   ```
+   python3 main.py --method 'train'
+   ```
+   
+   **Debug (~10 hours):** This will run the training loops along with any debugging code, this includes checks for the data 
+   loaders and 
+   plotting outputs between models in addition to at the end of the loops.
+   ```
+   python3 main.py --method 'debug'
+   ```
+   
+   **EDA (additional 10+ minutes):** Running with EDA set to True will run the EDA python script before any modeling code, 
+   this will allow the EDA notebook to be executed without errors. If you don't want to execute the EDA notebook then 
+   this argument should be left out as the default is False.
+   ```
+   python3 main.py --method 'test' --EDA True
+   ```
 
 # <a name="structure"></a>
 ## Folder Structure
@@ -71,13 +82,13 @@ Lunar Landscape Imagery Segmentation
 - [X] Environment Setup - 11/8/2022
 - [X] EDA - 11/11/2022
 - [X] Start Model Training - 11/18/2022
-- [ ] Final Model and Results - 12/02/2022
+- [X] Final Model and Results - 12/02/2022
 - [X] Google Drive Models Download
-- [ ] Google Drive Data Download
-- [ ] Main Script with option to run saved model or train from scratch
+- [X] Google Drive Data Download
+- [X] Main Script with option to run saved model or train from scratch
 - [X] Freeze requirements.txt
 - [ ] Finalize README
-- [ ] Test On Clean EC2
+- [X] Test On Clean EC2
 - [ ] Final Report - 12/12/2022
 - [ ] Individual Reports/Code
 - [ ] Final Presentation - 12/12/2022
