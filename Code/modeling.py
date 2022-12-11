@@ -37,9 +37,7 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     :return:
     '''
 
-    '''
-    Set paths
-    '''
+    # ---------------------------- SET PATHS
     CODE_PATH = os.getcwd()
     os.chdir('..')
     BASE_PATH = os.getcwd()
@@ -51,9 +49,7 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     if not os.path.exists(RESULT_PATH):
         os.mkdir(RESULT_PATH)
 
-    '''
-    SET UP device
-    '''
+    # ----------------------------- SET UP DEVICE
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('Using device..', device)
     torch.manual_seed(42)
@@ -64,9 +60,8 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     gc.collect()
     torch.cuda.empty_cache()
 
-    '''
-    Set parameters
-    '''
+
+    # ----------------------------- SET PARAMETERS
     train_img_folder = DATA_PATH + '/images/train/render'
     train_mask_folder = DATA_PATH + '/images/train/mask'
     val_img_folder = DATA_PATH + '/images/val/render'
@@ -81,9 +76,8 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     num_classes = 4
     all_models = []
 
-    '''
-    Create dataloader for train, validation, and testing dataset
-    '''
+
+    # ----------------------------- GET DATA
     train_data = CustomDataLoader(img_folder=train_img_folder, mask_folder=train_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='train', augmentation=True)
     train_data_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
@@ -96,18 +90,18 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     real_test_data = CustomDataLoader(img_folder=real_test_img_folder, mask_folder=real_test_mask_folder, batch_size=batch_size, imsize=imsize, num_classes=num_classes, split='test', augmentation=False)
     real_test_data_loader = DataLoader(real_test_data, batch_size=batch_size, shuffle=True)
 
-    '''
-    Review and Check Preprocessing and DataLoader outputs are correctly performed
-    '''
+
+    # ----------------------------- DEBUGGING
     if debug:
         print('debugging')
+        get_real_stats(real_test_data_loader, device, DATA_PATH)
+        get_random_prediction(test_data_loader, device)
         #do_preprocessing_checks(train_data, train_data_loader, train_img_folder, train_mask_folder, real_test_img_folder, real_test_mask_folder)
         #test(test_data_loader)
 
-    '''
-    SET hyperparams
-    '''
-    n_epochs = 1
+
+    # ----------------------------- HYPERPARAMS
+    n_epochs = 20
     LR = 0.001
 
     metrics = {
@@ -115,7 +109,6 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
         "IOU": JaccardIndex(num_classes = 4)
     }
 
-    #lossBCE = torch.nn.BCEWithLogitsLoss()
     lossCE = torch.nn.CrossEntropyLoss()
     num_training_steps = n_epochs * len(train_data_loader)
 
@@ -124,9 +117,7 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     # [model name, epoch, metric, value]
     RESULTS = []
 
-    '''
-    UNET SCRATCH
-    '''
+    # ----------------------------- SCRATCH MODEL
     Unet = UNet_scratch(verbose = False).to(device)
     opt = Adam(Unet.parameters(), lr = LR)
     lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
@@ -136,9 +127,8 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
         print('Training ', num_training_steps, 'steps!!')
         model.run_training(n_epochs = n_epochs, save_on = 'val_IOU', load = False)
 
-    '''
-    Evaluate model
-    '''
+
+    # ----------------------------- TEST
     _ = model.load() # always load latest model
     model.run_test()
     _ = update_results(model, RESULTS, RESULT_PATH)
@@ -148,16 +138,14 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     all_models.append(model)
 
 
-    '''
-    PRETRAINED VGG
-    '''
+    # ----------------------------- VGG
+
     RESULTS = []
 
     backbone = 'vgg11_bn'
     encoder_weights = 'imagenet'
     activation = None
 
-    #loss = smp.utils.losses.BCEWithLogitsLoss()
     Closs = smp.utils.losses.CrossEntropyLoss()
     metrics = [
         smp_utils.metrics.IoU(threshold=0.5)
@@ -167,9 +155,7 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     if TRAIN:
         pretrained_vgg.run_training(n_epochs, load = False)
 
-    '''
-    Evaluate pretrained model
-    '''
+    # ----------------------------- TEST
     _ = pretrained_vgg.load() # always load the best model
     pretrained_vgg.run_testing()
     _ = update_results(pretrained_vgg, RESULTS, RESULT_PATH)
@@ -178,17 +164,13 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
         plot_prediction(pretrained_vgg, test_data_loader, device)
     all_models.append(pretrained_vgg)
 
-    '''
-    PRETRAINED RESNET
-    '''
-
+    # ----------------------------- RESNET
     RESULTS = []
 
     backbone = 'resnet18'
     encoder_weights = 'imagenet'
     activation = None
 
-    #loss = smp.utils.losses.BCEWithLogitsLoss()
     Closs = smp.utils.losses.CrossEntropyLoss()
     metrics = [
         smp_utils.metrics.IoU(threshold=0.5)
@@ -198,9 +180,7 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     if TRAIN:
         pretrained_resnet.run_training(n_epochs, load = False)
 
-    '''
-    Evaluate pretrained model
-    '''
+    # ----------------------------- TEST
     _ = pretrained_resnet.load() # always load the best model
     pretrained_resnet.run_testing()
     _ = update_results(pretrained_resnet, RESULTS, RESULT_PATH)
@@ -209,15 +189,11 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
         plot_prediction(pretrained_resnet, test_data_loader, device)
     all_models.append(pretrained_resnet)
 
-    '''
-    PRETRAINED MOBILENET
-    '''
-
+    # ----------------------------- Mobilenet
     backbone = 'timm-mobilenetv3_large_100'
     encoder_weights = 'imagenet'
     activation = None
 
-    # loss = smp.utils.losses.BCEWithLogitsLoss()
     Closs = smp.utils.losses.CrossEntropyLoss()
     metrics = [
         smp_utils.metrics.IoU(threshold = 0.5),
@@ -226,9 +202,8 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
 
     if TRAIN:
         pretrained_mobilenet.run_training(n_epochs, load = False)
-    '''
-    Evaluate pretrained model
-    '''
+
+    # ----------------------------- TEST
     _ = pretrained_mobilenet.load() # always load the best model
     pretrained_mobilenet.run_testing()
     _ = update_results(pretrained_mobilenet, RESULTS, RESULT_PATH)
@@ -238,9 +213,7 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     all_models.append(pretrained_mobilenet)
 
 
-    '''
-    Plots on Test Data
-    '''
+    # ----------------------------- PLOT
     if plot:
     # Plot some test results' class channel breakdowns
         check_plotter_channels_breakdown = Plotter()
@@ -261,4 +234,4 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
 
 if __name__ == '__main__':
     print('Running modeling.py')
-    RUN_MODEL_LOOP(TRAIN = True, debug = True, plot = True, data_source = 'ground')
+    RUN_MODEL_LOOP(TRAIN = False, debug = False, plot = True, data_source = 'ground')

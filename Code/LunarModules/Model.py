@@ -315,12 +315,13 @@ class Model:
 
         self.model.eval()
         with torch.no_grad():
-
             for step, batch in enumerate(self.test_data_loader):
+
                 x_test, y_test = batch[0].to(self.device), batch[1].to(self.device)
 
 
                 y_test_pred = self.model(x_test.float())
+
                 loss = self.loss(y_test_pred, y_test.float())
 
                 running_metrics['running_test_loss'] += loss.item()
