@@ -23,23 +23,28 @@ def download_data_gdrive(data_url="https://drive.google.com/drive/folders/1UrBuQ
     BASE_PATH = os.getcwd()
     os.chdir(CODE_PATH)
     DATA_PATH = os.path.join(BASE_PATH, 'Data')
+    ZIP_PATH = os.path.join(BASE_PATH,'lunar_surface_image_data')
 
     if os.path.exists(DATA_PATH):
         shutil.rmtree(DATA_PATH)
+    if os.path.exists(ZIP_PATH):
+        shutil.rmtree(ZIP_PATH)
 
     '''
     Download 
     '''
     os.chdir(BASE_PATH)
+    print('Downloading data...')
     gdown.download_folder(data_url, quiet=True, use_cookies=False)
 
     '''
     Unzip: https://www.geeksforgeeks.org/unzipping-files-in-python/
     '''
-    # with ZipFile(BASE_PATH+'/lunar_surfce_image_data.zip', 'r') as zObject:
+    print('Unzipping data...')
+    with ZipFile(BASE_PATH+'/lunar_surfce_image_data/Data.zip', 'r') as zObject:
     
-    #     # Extracting all of the zip into a specific location.
-    #     zObject.extractall(path=DATA_PATH)
+        # Extracting all of the zip into a specific location.
+        zObject.extractall(path=BASE_PATH)
 
 
 if __name__ == '__main__':
