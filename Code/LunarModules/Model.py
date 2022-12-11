@@ -385,7 +385,7 @@ class Model:
         fig.savefig(os.path.join(save_loc, f'{self.name}_training_curves'))
 
     def save_model(self, epoch):
-        save_loc = os.path.join(self.base_loc, 'Models')
+        save_loc = os.path.join(self.base_loc, 'Models', 'lunar_surface_segmentation_models')
         if not os.path.exists(save_loc):
             print('Making Model Dir')
             os.mkdir(save_loc)
@@ -393,7 +393,7 @@ class Model:
         print('saving model ...')
 
     def load_latest_model(self, device):
-        model_loc = os.path.join(self.base_loc, 'Models')
+        model_loc = os.path.join(self.base_loc, 'Models', 'lunar_surface_segmentation_models')
         if not os.path.exists(model_loc):
             print('Model folder doesnt exist, skipping loading...')
             return 0
@@ -493,7 +493,7 @@ class Pretrained_Model:
                 self.save_model(i)
 
     def save_model(self, epoch):
-        save_loc = os.path.join(self.base_loc, 'Models')
+        save_loc = os.path.join(self.base_loc, 'Models', 'lunar_surface_segmentation_models')
         if not os.path.exists(save_loc):
             print('Making Model Dir')
             os.mkdir(save_loc)
@@ -533,7 +533,7 @@ class Pretrained_Model:
         return last_e
 
     def load_latest_model(self, device):
-        model_loc = os.path.join(self.base_loc, 'Models')
+        model_loc = os.path.join(self.base_loc, 'Models', 'lunar_surface_segmentation_models')
         if not os.path.exists(model_loc):
             print('Model folder doesnt exist, skipping loading...')
             return 0

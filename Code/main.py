@@ -1,22 +1,11 @@
-from LunarModules.ImageProcessor import ImageProcessor
-from LunarModules.CustomDataLoader import CustomDataLoader
-from LunarModules.Plotter import Plotter
-from LunarModules.Model import *
 from LunarModules.TrainTestSplit import *
 from google_drive_data_download import *
 from trained_model_dl import *
 from modeling import *
 from EDA import *
-from torch.utils.data import Dataset, DataLoader
-from torch.optim import Adam, AdamW
-from transformers import get_scheduler
 import os
-import gc
-from tqdm.auto import tqdm
 import time
 import argparse
-
-
 
 if __name__ == '__main__':
     CODE_PATH = os.getcwd()
@@ -29,8 +18,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--method', default = 'test', type = str, required = False)
+    parser.add_argument('--EDA', default = False, type = bool, required = False)
     args = parser.parse_args()
-    print('RUNNING WITH METHOD: ', args.method)
+    print('RUNNING WITH METHOD: ', args.method, ' EDA: ', args.EDA)
 
     TRAIN = False
     debug = False
@@ -66,16 +56,17 @@ if __name__ == '__main__':
         print('DOWNLOAD COMPLETE -- ', ((models_t2 - models_t1)/60), ' minutes')
 
     # do EDA
-    print('Running EDA script ....')
-    eda_t1 = time.time()
-    RUN_EDA()
-    eda_t2 = time.time()
-    print('EDA complete -- ', (eda_t2 - eda_t1)/60, ' minutes -- You can now run the EDA notebook if desired')
+    if args.EDA:
+        print('Running EDA script ....')
+        eda_t1 = time.time()
+        RUN_EDA()
+        eda_t2 = time.time()
+        print('EDA complete -- ', (eda_t2 - eda_t1)/60, ' minutes -- You can now run the EDA notebook if desired')
 
     # do traintestsplit
-    if not os.path.exists(TRAINED_MODELS_PATH) or len(os.listdir(SPLIT_DATA_PATH)) == 0:
+    if not os.path.exists(SPLIT_DATA_PATH):
         print('SPLITTING DATA ....')
-        run_datasplit(SOURCE = 'ground', )
+        run_datasplit(SOURCE = 'ground' )
     # Run Modeling and Evaluation
     RUN_MODEL_LOOP(TRAIN = TRAIN, debug = debug, plot = plot)
     print("EXITING")
