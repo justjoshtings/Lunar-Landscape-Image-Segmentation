@@ -6,6 +6,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import pandas as pd
 import torch
+import cv2
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import Adam, AdamW
 from transformers import get_scheduler
@@ -145,3 +146,98 @@ def plot_prediction(model, test_data_loader, device):
             fig.savefig(f'prayers_{model.name}.png')
             print('done')
             return
+
+def get_random_prediction(test_data_loader, device):
+    print('random ...')
+    running_iou = 0
+    for step, batch in enumerate(test_data_loader):
+        x_test, y_test = batch[0].to(device), batch[1].to(device)
+        y_pred = torch.randint(low = 0, high = 2, size = y_test.shape)
+        iou = JaccardIndex(num_classes = 4)(torch.argmax(y_pred.float(), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+        running_iou += iou
+    print('random iou: ', (running_iou/len(test_data_loader)).numpy()+0)
+    return
+
+def get_real_stats(test_data_loader, device, DATA_PATH):
+    CODE_PATH = os.getcwd()
+    os.chdir('..')
+    BASE_PATH = os.getcwd()
+    os.chdir(CODE_PATH)
+    all_models = []
+    Closs = smp.utils.losses.CrossEntropyLoss()
+    metrics = [
+        smp_utils.metrics.IoU(threshold = 0.5),
+    ]
+
+    Unet = UNet_scratch(verbose = False).to(device)
+    model = Model(Unet, loss = None, opt = None, scheduler = None, metrics = {'no':'no'}, random_seed = 42, train_data_loader = None, val_data_loader = None, test_data_loader = test_data_loader, real_test_data_loader = None, device = device, base_loc = BASE_PATH, name = f"Unet_scratch_ground", log_file=None)
+
+    _ = model.load()
+    all_models.append(model)
+
+    backbone = 'vgg11_bn'
+    encoder_weights = 'imagenet'
+    activation = None
+    Closs = smp.utils.losses.CrossEntropyLoss()
+    pretrained_vgg = Pretrained_Model(backbone = backbone, train_data_loader = None, val_data_loader = None, test_data_loader = test_data_loader, real_test_data_loader = None, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = 0.01, loss = Closs, device = device, base_loc = BASE_PATH, name = f'VGG11_BN_ground')
+    _ = pretrained_vgg.load()
+    all_models.append(pretrained_vgg)
+
+    backbone = 'resnet18'
+    pretrained_resnet = Pretrained_Model(backbone = backbone, train_data_loader = None, val_data_loader = None, test_data_loader = test_data_loader, real_test_data_loader = None, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = 0.01, loss = Closs, device = device, base_loc = BASE_PATH, name = f'RESNET18_ground')
+    _ = pretrained_resnet.load()
+    all_models.append(pretrained_resnet)
+
+    backbone = 'timm-mobilenetv3_large_100'
+    pretrained_mobilenet = Pretrained_Model(backbone = backbone, train_data_loader = None, val_data_loader = None, test_data_loader = test_data_loader, real_test_data_loader = None, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = 0.01, loss = Closs, device = device, base_loc = BASE_PATH, name = f'mobilenetv3_large_100_ground')
+    _ = pretrained_mobilenet.load()
+    all_models.append(pretrained_mobilenet)
+
+    iou = JaccardIndex(num_classes = 4)
+    running = {}
+    for model in all_models:
+        running[model.name] = 0
+
+    data_path = os.path.join(DATA_PATH, 'images', 'real')
+    imgs = os.listdir(os.path.join(data_path, 'real_img'))
+    img_mask_processor = ImageProcessor()
+    count = 0
+    res = []
+    with torch.no_grad():
+        for img in imgs:
+            img_loaded = plt.imread(data_path + '/real_img/' + img)
+            img_loaded = cv2.resize(img_loaded, (256, 256))
+
+            mask_loaded = plt.imread(data_path + '/real_mask/g_' + img)
+            mask_loaded = cv2.resize(mask_loaded, (256, 256))
+
+            img_loaded = img_mask_processor.preprocessor_images(img_loaded)
+            mask_loaded = img_mask_processor.preprocessor_masks(mask_loaded)
+
+            img_tensor = torch.from_numpy(img_loaded).float()
+            mask_tensor = torch.from_numpy(mask_loaded).float()
+
+            # Change ordering, channels first then img size
+            x_test = img_tensor.permute(2, 0, 1).to(device)
+            x_test = torch.unsqueeze(x_test, 0)
+            y_test = mask_tensor.permute(2, 0, 1).to(device)
+            y_test = torch.unsqueeze(y_test, 0)
+
+            if x_test.shape[1] == 4:
+                continue
+            for model in all_models:
+                model.model.eval()
+                y_pred = model.model(x_test.float())
+                if 'scratch' not in model.name:
+                    y_pred = torch.softmax(y_pred, dim = 1)
+                iou_score = iou(torch.argmax(y_pred.float(), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+                running[model.name] += iou_score
+                res.append([model.name, count, 'real_test_iou', iou_score.numpy()+0])
+            count += 1
+    print(count, ' total images')
+    # for model in all_models:
+    #     final_iou = (running[model.name]/count).numpy()+0
+    #     res.append([model.name, -1, 'real_test_iou', final_iou])
+    df = pd.DataFrame(res, columns = ['model_name', 'epoch', 'metric', 'value'])
+    df.to_csv(BASE_PATH + '/Results/real_data_results.csv')
+    return

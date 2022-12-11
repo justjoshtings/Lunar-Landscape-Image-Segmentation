@@ -5,6 +5,8 @@ Object to handle data generators.
 author: @saharae, @justjoshtings
 created: 11/12/2022
 """
+import time
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -91,7 +93,6 @@ class CustomDataLoader:
         mask_loaded = plt.imread(self.mask_folder+'/'+masks)
         mask_loaded = cv2.resize(mask_loaded, (self.imsize, self.imsize))
 
-
         # plt.imread() Loads as value between 0 and 1, cv2.imread() loads values between 0-255
         # test= cv2.imread(self.img_folder+'/'+images)
         # test_mask = cv2.imread(self.mask_folder+'/'+masks)
@@ -108,7 +109,7 @@ class CustomDataLoader:
         if self.augmentation:
             img_loaded, mask_loaded = img_mask_processor.data_augmentation(img_loaded, mask_loaded)
 
-        check_plotter.peek_images(sample_images=img_loaded,sample_masks=mask_loaded,file_name=f'current_test_2.png')
+        #check_plotter.peek_images(sample_images=img_loaded,sample_masks=mask_loaded,file_name=f'current_test_2.png')
 
         #Pre-processing steps
         img_loaded = img_mask_processor.preprocessor_images(img_loaded)

@@ -82,7 +82,7 @@ def move_real_test_images(DATA_PATH):
         shutil.copy2(src, dst)
     
 
-def run(SOURCE = 'clean', RESPLIT = False):
+def run_datasplit(SOURCE = 'clean', RESPLIT = False):
     '''
     main function that splits and copies data into correct folders
     :param SOURCE: source of training data 'clean' or 'ground'
@@ -143,4 +143,4 @@ if __name__ == '__main__':
     SOURCE = args.source
     RESPLIT = args.resplit
     print(f'SPLITTING DATA WITH source={SOURCE}, resplit={RESPLIT}')
-    run(SOURCE=SOURCE, RESPLIT=RESPLIT)
+    run_datasplit(SOURCE=SOURCE, RESPLIT=RESPLIT)
