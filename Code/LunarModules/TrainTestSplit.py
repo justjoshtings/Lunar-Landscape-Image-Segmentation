@@ -91,7 +91,7 @@ def run_datasplit(SOURCE = 'clean', RESPLIT = False):
     :return: none
     '''
     BASE_PATH = os.getcwd()
-    os.chdir('../../Data')
+    os.chdir('../Data')
     DATA_PATH = os.getcwd()
 
     if RESPLIT:

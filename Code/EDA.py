@@ -11,7 +11,6 @@ def RUN_EDA():
     os.chdir(CODE_PATH)
     DATA_PATH = os.path.join(BASE_PATH, 'Data')
 
-    bounding = pd.read_csv(os.path.join(DATA_PATH, 'bounding_boxes.csv'))
     imgs = os.listdir(os.path.join(DATA_PATH, 'images', 'clean'))
 
     dat = []

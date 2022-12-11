@@ -106,7 +106,7 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
 
     metrics = {
         "Dice": Dice(num_classes = 4),
-        "IOU": JaccardIndex(num_classes = 4)
+        "IOU": JaccardIndex(num_classes = 4, task = 'multiclass')
     }
 
     lossCE = torch.nn.CrossEntropyLoss()
