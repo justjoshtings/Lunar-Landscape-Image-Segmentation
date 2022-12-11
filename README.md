@@ -4,7 +4,7 @@
 ## Project
 Lunar Landscape Imagery Segmentation 
 
-![sample_diagram](https://github.com/justjoshtings/Final-Project-Group5/blob/main/Code/plots/predictions/main_predictions/render_test_VGG11_BN_Ground/render7871.png)
+![sample_diagram](https://github.com/justjoshtings/Final-Project-Group5/blob/main/Code/plots/render7871.png)
 
 ## Table of Contents
 1. [Team Members](#team_members)
