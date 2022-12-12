@@ -40,7 +40,7 @@ if __name__ == '__main__':
         plot = True
 
     # download data from google drive
-    if not os.path.exists(DATA_PATH) or len(os.listdir(DATA_PATH)) == 0:
+    if not os.path.exists(DATA_PATH) or len([x for x in os.listdir(DATA_PATH) if x not in ['.DS_Store']]) == 0:
         data_t1 = time.time()
         print('DOWNLOADING DATA ....')
         download_data_gdrive()
@@ -56,6 +56,7 @@ if __name__ == '__main__':
         print('DOWNLOAD COMPLETE -- ', ((models_t2 - models_t1)/60), ' minutes')
 
     # do EDA
+    os.chdir(CODE_PATH)
     if args.EDA:
         print('Running EDA script ....')
         eda_t1 = time.time()
