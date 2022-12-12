@@ -26,6 +26,10 @@ import segmentation_models_pytorch.utils as smp_utils
 Utility Functions
 '''
 def test(loader):
+    '''
+    test the data that comes from the dataloader
+    plot random images
+    '''
     for step, batch in enumerate(loader):
         print("testing loader")
         if step == 0:
@@ -91,6 +95,13 @@ def do_preprocessing_checks(train_data, train_data_loader, train_img_folder, tra
     print(sample_mask_decoded.shape)
 
 def update_results(model, RESULTS, RESULT_PATH):
+    '''
+    Update results file with training information
+    :param model: model to view history of
+    :param RESULTS: results file
+    :param RESULT_PATH: location of results file
+    :return:
+    '''
     for metric in model.history.keys():
         for epoch, val in model.history[metric]:
             RESULTS.append([model.name, epoch, metric, val])
@@ -106,13 +117,19 @@ def update_results(model, RESULTS, RESULT_PATH):
     return RESULTS
 
 def plot_prediction(model, test_data_loader, device):
+    '''
+    plot random predictions
+    :param model: model to test
+    :param test_data_loader: test data loader
+    :param device: pytorch device
+    :return:
+    '''
     print('plotting...')
     for step, batch in enumerate(test_data_loader):
         if step == 0:
             x_test, y_test = batch[0], batch[1]
             y_pred = model.model(x_test.to(device))
-            # print(f'TEST: {y_test.shape}', y_test)
-            # print(f'PRED: {y_pred.shape}', y_pred)
+
             np.save('y_test_batch.npy', y_test.cpu().detach().numpy())
             np.save('y_pred_batch.npy', y_pred.cpu().detach().numpy())
 
@@ -120,7 +137,7 @@ def plot_prediction(model, test_data_loader, device):
                 y_pred_OHE = torch.softmax(y_pred, dim = 1)
             else:
                 y_pred_OHE = y_pred
-            #print(f'PRED OHE: {y_pred_OHE.shape}', y_pred_OHE)
+
 
             y_pred_reorder = y_pred_OHE.permute(0, 2, 3, 1)
             y_test_reorder = y_test.permute(0, 2, 3, 1)
@@ -148,6 +165,12 @@ def plot_prediction(model, test_data_loader, device):
             return
 
 def get_random_prediction(test_data_loader, device):
+    '''
+    get predictions on testing data with a random method
+    :param test_data_loader: testing data loader
+    :param device: pytorch device
+    :return:
+    '''
     print('random ...')
     running_iou = 0
     for step, batch in enumerate(test_data_loader):
@@ -158,7 +181,90 @@ def get_random_prediction(test_data_loader, device):
     print('random iou: ', (running_iou/len(test_data_loader)).numpy()+0)
     return
 
+def single_real_test(test_data_loader, device, DATA_PATH):
+    '''
+    testing a single image - for report images
+    :param test_data_loader: testing data loader
+    :param device: pytorch device
+    :param DATA_PATH: path to data
+    :return:
+    '''
+    CODE_PATH = os.getcwd()
+    os.chdir('..')
+    BASE_PATH = os.getcwd()
+    os.chdir(CODE_PATH)
+    all_models = []
+    Closs = smp.utils.losses.CrossEntropyLoss()
+    metrics = [
+        smp_utils.metrics.IoU(threshold = 0.5),
+    ]
+
+    Unet = UNet_scratch(verbose = False).to(device)
+    model = Model(Unet, loss = None, opt = None, scheduler = None, metrics = {'no':'no'}, random_seed = 42, train_data_loader = None, val_data_loader = None, test_data_loader = test_data_loader, real_test_data_loader = None, device = device, base_loc = BASE_PATH, name = f"Unet_scratch_ground", log_file=None)
+
+    _ = model.load()
+    all_models.append(model)
+
+    backbone = 'resnet18'
+    encoder_weights = 'imagenet'
+    activation = None
+
+    pretrained_resnet = Pretrained_Model(backbone = backbone, train_data_loader = None, val_data_loader = None, test_data_loader = test_data_loader, real_test_data_loader = None, encoder_weights = encoder_weights, activation = activation, metrics = metrics, LR = 0.01, loss = Closs, device = device, base_loc = BASE_PATH, name = f'RESNET18_ground')
+    _ = pretrained_resnet.load()
+    all_models.append(pretrained_resnet)
+
+    iou = JaccardIndex(num_classes = 4, task = 'multiclass')
+    running = {}
+    for model in all_models:
+        running[model.name] = 0
+
+    data_path = os.path.join(DATA_PATH, 'images', 'real')
+    imgs = ['TCAM15.png']
+    img_mask_processor = ImageProcessor()
+    count = 0
+    res = []
+    with torch.no_grad():
+        for img in imgs:
+            img_loaded = plt.imread(data_path + '/real_img/' + img)
+            img_loaded = cv2.resize(img_loaded, (256, 256))
+
+            mask_loaded = plt.imread(data_path + '/real_mask/g_' + img)
+            mask_loaded = cv2.resize(mask_loaded, (256, 256))
+
+            img_loaded = img_mask_processor.preprocessor_images(img_loaded)
+            mask_loaded = img_mask_processor.preprocessor_masks(mask_loaded)
+
+            img_tensor = torch.from_numpy(img_loaded).float()
+            mask_tensor = torch.from_numpy(mask_loaded).float()
+
+            # Change ordering, channels first then img size
+            x_test = img_tensor.permute(2, 0, 1).to(device)
+            x_test = torch.unsqueeze(x_test, 0)
+            y_test = mask_tensor.permute(2, 0, 1).to(device)
+            y_test = torch.unsqueeze(y_test, 0)
+
+            if x_test.shape[1] == 4:
+                continue
+            for model in all_models:
+                model.model.eval()
+                y_pred = model.model(x_test.float())
+                if 'scratch' not in model.name:
+                    y_pred = torch.softmax(y_pred, dim = 1)
+                iou_score = iou(torch.argmax(y_pred.float(), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
+                running[model.name] += iou_score
+                res.append([model.name, count, 'real_test_iou', iou_score.numpy()+0])
+            count += 1
+    print(count, ' total images')
+    print(res)
+
 def get_real_stats(test_data_loader, device, DATA_PATH):
+    '''
+    get stats for real image testing - new function needed because of problematic real image dimensions
+    :param test_data_loader: testing data loader
+    :param device: pytorch device
+    :param DATA_PATH: path to data
+    :return:
+    '''
     CODE_PATH = os.getcwd()
     os.chdir('..')
     BASE_PATH = os.getcwd()
@@ -193,7 +299,7 @@ def get_real_stats(test_data_loader, device, DATA_PATH):
     _ = pretrained_mobilenet.load()
     all_models.append(pretrained_mobilenet)
 
-    iou = JaccardIndex(num_classes = 4)
+    iou = JaccardIndex(num_classes = 4, task = 'multiclass')
     running = {}
     for model in all_models:
         running[model.name] = 0
@@ -235,9 +341,7 @@ def get_real_stats(test_data_loader, device, DATA_PATH):
                 res.append([model.name, count, 'real_test_iou', iou_score.numpy()+0])
             count += 1
     print(count, ' total images')
-    # for model in all_models:
-    #     final_iou = (running[model.name]/count).numpy()+0
-    #     res.append([model.name, -1, 'real_test_iou', final_iou])
+
     df = pd.DataFrame(res, columns = ['model_name', 'epoch', 'metric', 'value'])
     df.to_csv(BASE_PATH + '/Results/real_data_results.csv')
     return

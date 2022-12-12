@@ -5,21 +5,15 @@ Object to handle modeling methods.
 author: @saharae, @justjoshtings
 created: 11/12/2022
 
-
 CITATIONS:
 Pretrained model backbone based on this example: https://github.com/qubvel/segmentation_models.pytorch/blob/master/examples/cars%20segmentation%20(camvid).ipynb
 Scratch model based on this code: https://amaarora.github.io/2020/09/13/unet.html
 Weight initialization based on this code: https://wandb.ai/wandb_fc/tips/reports/How-to-Initialize-Weights-in-PyTorch--VmlldzoxNjcwOTg1
 """
-
-
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-import random
-import copy
 import torch
 import torch.nn as nn
 import torchvision
@@ -27,14 +21,14 @@ import time
 import datetime as dt
 from transformers import get_scheduler
 from tqdm.auto import tqdm
-from torchmetrics import JaccardIndex
-from torchmetrics import Dice
-from torchvision import models
 import segmentation_models_pytorch as smp
 import segmentation_models_pytorch.utils as smp_utils
-from torch.optim import Adam, AdamW, SGD
+from torch.optim import SGD
 
 class Down(nn.Module):
+    '''
+    ENCODER of Custom UNet
+    '''
     def __init__(self, verbose = False):
         super().__init__()
         self.verbose = verbose
@@ -54,14 +48,17 @@ class Down(nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(p = 0.2)
 
+        ## Setting Weights
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, np.sqrt(2. / n))
 
     def forward(self, x):
+        ## Running forward
         ft_maps = []
 
+        # First Block
         x = self.relu(self.conv2(self.relu(self.convnorm1(self.conv1(x)))))
         ft_maps.append(x)
         if self.verbose:
@@ -71,7 +68,7 @@ class Down(nn.Module):
             print('size after first down block: ', x.shape)
         x = self.dropout(x)
 
-
+        # Second Block
         x = self.relu(self.conv4(self.relu(self.convnorm2(self.conv3(x)))))
         ft_maps.append(x)
         if self.verbose:
@@ -81,6 +78,7 @@ class Down(nn.Module):
             print('size after second down block: ', x.shape)
         x = self.dropout(x)
 
+        # Third Block
         x = self.relu(self.conv6(self.relu(self.convnorm3(self.conv5(x)))))
         ft_maps.append(x)
         if self.verbose:
@@ -94,6 +92,9 @@ class Down(nn.Module):
 
 
 class Up(nn.Module):
+    '''
+    DECODER block of U-Net
+    '''
     def __init__(self, verbose = False):
         super().__init__()
         self.verbose = verbose
@@ -117,6 +118,14 @@ class Up(nn.Module):
                 m.weight.data.normal_(0, np.sqrt(2. / n))
 
     def forward(self, x, encoder_features):
+        '''
+        Forward loop
+        :param x: input
+        :param encoder_features: features from same level block of encoder
+        :return:
+        '''
+
+        # first block
         x = self.conv_trans1(x)
         ft = self.crop(encoder_features[0], x)
         x = torch.cat([x, ft], dim = 1)
@@ -125,6 +134,7 @@ class Up(nn.Module):
         x = self.dropout(x)
         x = self.relu(self.conv2(self.relu(self.convnorm1(self.conv1(x))))) # decoder block 1
 
+        # second block
         x = self.conv_trans2(x)
         ft = self.crop(encoder_features[1], x)
         x = torch.cat([x, ft], dim = 1)
@@ -137,6 +147,12 @@ class Up(nn.Module):
         return x
 
     def crop(self, enc_ftrs, x):
+        '''
+        Crop the features to match the proper size of the inputs to the decoder blocks
+        :param enc_ftrs: features to crop
+        :param x: input to size match to
+        :return:
+        '''
         if self.verbose:
             print(f'crop enc_ftrs shape: {enc_ftrs.shape}')
         _, _, H, W = x.shape
@@ -144,6 +160,9 @@ class Up(nn.Module):
         return enc_ftrs
 
 class UNet_scratch(nn.Module):
+    '''
+    COMBINED U-NET MODEL
+    '''
     def __init__(self, num_class = 4, retain_dim = True, out_sz = (256, 256), verbose = False):
         super().__init__()
         self.encoder = Down(verbose = verbose)
@@ -155,6 +174,11 @@ class UNet_scratch(nn.Module):
         self.act = nn.Softmax(dim = 1)
 
     def forward(self, x):
+        '''
+        Forward loop that connects the encoder and decoder
+        :param x: input
+        :return:
+        '''
         ft_maps = self.encoder(x)
         out = self.decoder(ft_maps[::-1][0], ft_maps[::-1][1:])
         out = self.act(self.head(out))
@@ -171,10 +195,21 @@ class Model:
     ## NEED TO ADD THIS
     def __init__(self, model, loss, opt, scheduler, metrics, random_seed, train_data_loader, val_data_loader, test_data_loader, real_test_data_loader, device, base_loc = None, name = None, log_file=None):
         '''
-        Params:
-            self: instance of object
-            log_file (str): default is None to not have logging, otherwise, specify logging path ../filepath/log.log
-
+        Scratch Model Wrapper
+        :param model: model to train
+        :param loss: loss function to use
+        :param opt: optimizer
+        :param scheduler: LR scheduler
+        :param metrics: dictionary of metrics to calculate
+        :param random_seed: random seed to set
+        :param train_data_loader: dataloader for train data
+        :param val_data_loader: dataloader for validation data
+        :param test_data_loader: dataloader for testing data
+        :param real_test_data_loader: dataloader for real testing data
+        :param device: device for pytorch
+        :param base_loc: base location to save to
+        :param name: model name, used for saving and plottng
+        :param log_file: logfile to output to
         '''
         self.log_file = log_file
         self.model = model.to(device)
@@ -202,10 +237,24 @@ class Model:
         self.device = device
 
     def load(self):
+        '''
+        Loads saved model state if it exists
+        :return:
+        '''
         last_e = self.load_latest_model(self.device)
         return last_e
 
     def run_training(self, n_epochs, save_on = 'val_IOU', load = False):
+        '''
+        Runs the training loop for scratch model
+        :param n_epochs: number of epochs to train
+        :param save_on: what metric to keep track of to save on
+        :param load: whether to load a saved model version. If True it will load and begin from last saved epoch, if False it will start from scratch
+        :return:
+        '''
+
+
+        ### SET UP
         print(f'Training: {self.name}')
         num_training_steps = n_epochs * len(self.train_data_loader)
         progress_bar = tqdm(range(num_training_steps))
@@ -220,9 +269,11 @@ class Model:
             print('that save metric doesnt exist, make sure the metric is passed into the function')
             return
 
+
         best_met = 0
         for e in range(last_e, n_epochs):
-
+            ## Start epoch
+            # reset metrics each epoch
             running_metrics = {
                 'running_train_loss': 0,
                 'running_val_loss': 0
@@ -248,9 +299,9 @@ class Model:
                 self.opt.step()
                 lr_scheduler.step()
 
-                #pred_soft = torch.softmax(pred, dim = 1)
                 pred_argmax = torch.argmax(pred, dim = 1)
 
+                # saving loss and metrics
                 running_metrics['running_train_loss'] += loss.item()
                 for metric in self.metrics.keys():
                     m = self.metrics[metric]
@@ -258,10 +309,12 @@ class Model:
 
                 progress_bar.update(1)
 
+            # calculating average loss and metrics
             self.history["train_loss"].append((e, (running_metrics['running_train_loss']/len(self.train_data_loader))))
             for metric in self.metrics.keys():
                 self.history[f'train_{metric}'].append((e, (running_metrics[f'running_train_{metric}'] / len(self.train_data_loader)).numpy()+0))
 
+            ## VALIDATION LOOP
             self.model.eval()
             with torch.no_grad():
                 for step, batch in enumerate(self.val_data_loader):
@@ -277,6 +330,7 @@ class Model:
                         m = self.metrics[metric]
                         running_metrics[f'running_val_{metric}'] += m(torch.argmax(y_val_pred.float(), dim = 1).cpu(), torch.argmax(y_val.float(), dim = 1).cpu())
 
+            # Updating validation metrics
             self.history["val_loss"].append((e, (running_metrics['running_val_loss']/len(self.val_data_loader))))
             for metric in self.metrics.keys():
                 self.history[f'val_{metric}'].append((e, (running_metrics[f'running_val_{metric}'] / len(self.val_data_loader)).numpy()+0))
@@ -291,6 +345,7 @@ class Model:
             if self.history[save_on][-1][1] > best_met:
                 self.save_model(e)
                 best_met = self.history[save_on][-1][1]
+
             # Measure how long this epoch took.
             print("")
             training_time = str(dt.timedelta(seconds = int(round((time.time() - t0)))))
@@ -298,6 +353,10 @@ class Model:
 
 
     def run_test(self):
+        '''
+        Run model on testing data
+        :return:
+        '''
         running_metrics = {
             'running_test_loss':0
         }
@@ -330,43 +389,34 @@ class Model:
                     running_metrics[f'running_test_{metric}'] += m(torch.argmax(y_test_pred.float(), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
                 progress_bar.update(1)
 
-            # count = 0
-            # for step, batch in enumerate(self.real_test_data_loader):
-            #     try:
-            #         x_test, y_test = batch[0].to(self.device), batch[1].to(self.device)
-            #         y_test_pred = self.model(x_test.float())
-            #         loss = self.loss(y_test_pred, y_test.float())
-            #
-            #         running_metrics['running_test_loss_real'] += loss.item()
-            #         for metric in self.metrics.keys():
-            #             m = self.metrics[metric]
-            #             running_metrics[f'running_test_{metric}_real'] += m(torch.argmax(torch.softmax(y_test_pred.float(), dim = 1), dim = 1).cpu(), torch.argmax(y_test.float(), dim = 1).cpu())
-            #         count+=1
-            #     except Exception as err:
-            #         print('issue with real test image, skipping -- ', err)
-            #     progress_bar2.update(1)
-
         s = f"TESTING: "
         for metric in self.metrics.keys():
             s += f"{metric} {running_metrics[f'running_test_{metric}']/len(self.test_data_loader)} "
-            #s += f"{metric} {running_metrics[f'running_test_{metric}_real'] / count} "
 
         self.history[f'test_loss'].append((-1, (running_metrics[f'running_test_loss'] / len(self.test_data_loader))))
-        #self.history[f'real_test_loss'].append((-1, (running_metrics[f'running_test_loss_real'] / count)))
 
         for metric in self.metrics.keys():
             self.history[f'test_{metric}'].append((-1, (running_metrics[f'running_test_{metric}'] / len(self.test_data_loader)).numpy()+0))
-            #self.history[f'real_test_{metric}'].append((-1, (running_metrics[f'running_test_{metric}_real'] / count).numpy()+0))
         print(s)
 
 
     def predict(self, img):
+        '''
+        Predicting function
+        :param img: img to predict
+        :return:
+        '''
         x_test = img.to(self.device)
         y_pred = self.model(x_test.float())
-        return torch.argmax(torch.softmax(y_pred.float(), dim = 1), dim = 1).cpu()
+        return torch.argmax(y_pred.float(), dim = 1).cpu()
 
 
     def plot_train(self, save_loc):
+        '''
+        plot training curves
+        :param save_loc:
+        :return:
+        '''
         metrics = self.metrics.keys()
         metrics = np.unique([m[m.find('_')+1:] for m in metrics])
         fig, axes = plt.subplots(nrows = 1, ncols = len(metrics), figsize = (8,8))
@@ -385,6 +435,11 @@ class Model:
         fig.savefig(os.path.join(save_loc, f'{self.name}_training_curves'))
 
     def save_model(self, epoch):
+        '''
+        save model to model folder
+        :param epoch: what epoch it's saving on
+        :return:
+        '''
         save_loc = os.path.join(self.base_loc, 'Models', 'lunar_surface_segmentation_models')
         if not os.path.exists(save_loc):
             print('Making Model Dir')
@@ -393,6 +448,11 @@ class Model:
         print('saving model ...')
 
     def load_latest_model(self, device):
+        '''
+        load the latest saved model
+        :param device: pytorch device
+        :return: the latest epoch the model was trained
+        '''
         model_loc = os.path.join(self.base_loc, 'Models', 'lunar_surface_segmentation_models')
         if not os.path.exists(model_loc):
             print('Model folder doesnt exist, skipping loading...')
@@ -411,8 +471,27 @@ class Model:
             return saved_iterations[-1]
 
 class Pretrained_Model:
+    '''
+    Model wrapper for U-Net with pretrained model backbone from segmentation-models-pytorch
+    '''
 
     def __init__(self, backbone, encoder_weights, activation, metrics, LR, loss, device, train_data_loader, val_data_loader, test_data_loader, real_test_data_loader, base_loc, name = None):
+        '''
+        init for pretrained model wrapper
+        :param backbone: backbone to use ex: 'resnet18'
+        :param encoder_weights: weights to use ex: 'imagenet'
+        :param activation: activation function to use, None for lienar
+        :param metrics: list of metrics to calculate
+        :param LR: Learning rate
+        :param loss: loss function
+        :param device: pytorch device
+        :param train_data_loader: dataloader for train
+        :param val_data_loader: dataloader for validation
+        :param test_data_loader: dataloader for testing
+        :param real_test_data_loader: dataloader for real testing images
+        :param base_loc: base location of code
+        :param name: model name for saving
+        '''
         self.backbone = backbone
         self.encoder_weights = encoder_weights
         self.activation = activation
@@ -460,6 +539,12 @@ class Pretrained_Model:
         )
 
     def run_training(self, n_epochs, load = False):
+        '''
+        Training loop
+        :param n_epochs: number of epochs to train for
+        :param load: whether to load a previous model state
+        :return:
+        '''
         print(f"Training: {self.name}")
         best_val_iou = 0.0
         train_logs_list, valid_logs_list = [], []
@@ -493,6 +578,11 @@ class Pretrained_Model:
                 self.save_model(i)
 
     def save_model(self, epoch):
+        '''
+        save model to model folder
+        :param epoch: epoch number of best model
+        :return:
+        '''
         save_loc = os.path.join(self.base_loc, 'Models', 'lunar_surface_segmentation_models')
         if not os.path.exists(save_loc):
             print('Making Model Dir')
@@ -501,6 +591,10 @@ class Pretrained_Model:
         print('saving model ...')
 
     def run_testing(self):
+        '''
+        test model on test dataset
+        :return:
+        '''
         test_epoch = smp.utils.train.ValidEpoch(
             model = self.model,
             loss = self.loss,
@@ -516,23 +610,24 @@ class Pretrained_Model:
                 self.history[f'test_{key}'] = [(-1, logs[key])]
             s += f' {key}: {self.history[f"test_{key}"][-1][1]}'
 
-        # logs_real = test_epoch.run(self.real_test_data_loader)
-        # s = f"TESTING REAL: "
-        # for key in logs_real.keys():
-        #     if key in self.history.keys():
-        #         self.history[f'real_test_{key}'].append((-1, logs_real[key]))
-        #     else:
-        #         self.history[f'real_test_{key}'] = [(-1, logs_real[key])]
-        #     s += f' {key}: {self.history[f"real_test_{key}"][-1][1]}'
         print(s)
 
 
 
     def load(self):
+        '''
+        load latest model
+        :return: latest epoch of training
+        '''
         last_e = self.load_latest_model(self.device)
         return last_e
 
     def load_latest_model(self, device):
+        '''
+        load latest model
+        :param device: pytorch device
+        :return: last epoch of training
+        '''
         model_loc = os.path.join(self.base_loc, 'Models', 'lunar_surface_segmentation_models')
         if not os.path.exists(model_loc):
             print('Model folder doesnt exist, skipping loading...')

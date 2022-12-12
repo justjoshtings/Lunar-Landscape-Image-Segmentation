@@ -56,6 +56,11 @@ def move_data(data, split, source, DATA_PATH):
         shutil.copy2(src, dst)
 
 def move_real_test_images(DATA_PATH):
+    '''
+    moves real images
+    :param DATA_PATH: path to data
+    :return:
+    '''
     source_path = os.path.join(DATA_PATH, 'real_moon_images')
     final_path = os.path.join(DATA_PATH, 'images', 'real')
     if not os.path.exists(os.path.join(final_path, 'real_img')):
@@ -68,9 +73,6 @@ def move_real_test_images(DATA_PATH):
 
     list_real_masks = [item for item in list_real_images if item.startswith('g_')]
     list_real_images = [item for item in list_real_images if not item.startswith('g_')]
-
-    # print(list_real_images, len(list_real_images))
-    # print(list_real_masks, len(list_real_masks))
 
     for img in list_real_images:
         src = os.path.join(source_path, img)
