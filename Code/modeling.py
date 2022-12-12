@@ -94,10 +94,11 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     # ----------------------------- DEBUGGING
     if debug:
         print('debugging')
-        get_real_stats(real_test_data_loader, device, DATA_PATH)
-        get_random_prediction(test_data_loader, device)
-        #do_preprocessing_checks(train_data, train_data_loader, train_img_folder, train_mask_folder, real_test_img_folder, real_test_mask_folder)
-        #test(test_data_loader)
+        #single_real_test(real_test_data_loader, device, DATA_PATH)
+        #get_real_stats(real_test_data_loader, device, DATA_PATH)
+        #get_random_prediction(test_data_loader, device)
+        do_preprocessing_checks(train_data, train_data_loader, train_img_folder, train_mask_folder, real_test_img_folder, real_test_mask_folder)
+        test(test_data_loader)
 
 
     # ----------------------------- HYPERPARAMS
@@ -123,6 +124,8 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
     lr_scheduler = get_scheduler(name="linear", optimizer=opt, num_warmup_steps=0, num_training_steps=num_training_steps)
     model = Model(Unet, loss = lossCE, opt = opt, scheduler = lr_scheduler, metrics = metrics, random_seed = 42, train_data_loader = train_data_loader, val_data_loader = val_data_loader, test_data_loader = test_data_loader, real_test_data_loader = real_test_data_loader, device = device, base_loc = BASE_PATH, name = f"Unet_scratch_{data_source}", log_file=None)
 
+
+
     if TRAIN:
         print('Training ', num_training_steps, 'steps!!')
         model.run_training(n_epochs = n_epochs, save_on = 'val_IOU', load = False)
@@ -139,7 +142,6 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
 
 
     # ----------------------------- VGG
-
     RESULTS = []
 
     backbone = 'vgg11_bn'
@@ -234,4 +236,4 @@ def RUN_MODEL_LOOP(TRAIN = True, debug = False, plot = True, data_source = 'grou
 
 if __name__ == '__main__':
     print('Running modeling.py')
-    RUN_MODEL_LOOP(TRAIN = False, debug = False, plot = True, data_source = 'ground')
+    RUN_MODEL_LOOP(TRAIN = False, debug = True, plot = True, data_source = 'ground')

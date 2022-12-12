@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def RUN_EDA():
+    '''
+    full function that runs EDA code to gather data used in the notebook
+    :return:
+    '''
     #getting paths
     CODE_PATH = os.getcwd()
     os.chdir('..')

@@ -13,6 +13,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from LunarModules.Model import *
 
+## path setup
 CODE_PATH = os.getcwd()
 os.chdir('..')
 BASE_PATH = os.getcwd()
@@ -20,8 +21,10 @@ os.chdir(CODE_PATH)
 plots_path = os.path.join(BASE_PATH, 'Results')
 results_path = os.path.join(BASE_PATH, 'Results/RESULTS.csv')
 
+# loading results
 res = pd.read_csv(results_path)
 
+## CUSTOM LOSS
 fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (8,6))
 loss = res[res.metric.isin(['train_loss', 'val_loss'])]
 pal = {'train_loss': 'cornflowerblue', 'val_loss': 'salmon'}
@@ -32,6 +35,7 @@ sns.despine()
 plt.savefig(plots_path + '/custom_loss')
 plt.show()
 
+## VGG STATS
 fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8,5))
 lossvgg = res[res.metric.isin(['train_cross_entropy_loss', 'val_cross_entropy_loss']) & (res.model_name == 'VGG11_BN_ground')]
 pal = {'train_cross_entropy_loss': 'cornflowerblue', 'val_cross_entropy_loss': 'salmon'}
@@ -48,6 +52,7 @@ plt.tight_layout()
 plt.savefig(plots_path + '/vgg_stats')
 plt.show()
 
+## RESNET STATS
 fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8,5))
 lossvgg = res[res.metric.isin(['train_cross_entropy_loss', 'val_cross_entropy_loss']) & (res.model_name == 'RESNET18_ground')]
 pal = {'train_cross_entropy_loss': 'cornflowerblue', 'val_cross_entropy_loss': 'salmon'}
@@ -64,6 +69,7 @@ plt.tight_layout()
 plt.savefig(plots_path + '/resnet_stats')
 plt.show()
 
+## Mobilenet Stats
 fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (8,5))
 lossvgg = res[res.metric.isin(['train_cross_entropy_loss', 'val_cross_entropy_loss']) & (res.model_name == 'mobilenetv3_large_100_ground')]
 pal = {'train_cross_entropy_loss': 'cornflowerblue', 'val_cross_entropy_loss': 'salmon'}
@@ -80,6 +86,7 @@ plt.tight_layout()
 plt.savefig(plots_path + '/mobilenet_stats')
 plt.show()
 
+## CUSTOM IOU
 iou = res[res.metric.isin(['train_IOU', 'val_IOU'])]
 pal = {'train_IOU': 'cornflowerblue', 'val_IOU': 'salmon'}
 fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (8,6))
@@ -92,16 +99,19 @@ plt.savefig(plots_path + '/custom_iou')
 plt.show()
 
 
+# renaming the stats so they're the same across models
 res2 = res.replace(to_replace = 'train_cross_entropy_loss', value = 'train_loss')
 res2 = res2.replace(to_replace = 'val_cross_entropy_loss', value = 'val_loss')
 res2 = res2.replace(to_replace = 'train_iou_score', value = 'train_IOU')
 res2 = res2.replace(to_replace = 'val_iou_score', value = 'val_IOU')
 
+## TRAINING COMPARE
 loss_t = res2[res2.metric.isin(['train_loss', 'val_loss'])]
 h = sns.relplot(data = loss_t, x = 'epoch', y = 'value', hue = 'model_name', col = 'metric', kind = 'line')
 h.fig.savefig(plots_path + '/training_compare')
 plt.show()
 
+## IOU COMPARE
 iou_t = res2[res2.metric.isin(['train_IOU', 'val_IOU'])]
 h = sns.relplot(data = iou_t, x = 'epoch', y = 'value', hue = 'model_name', col = 'metric', kind = 'line')
 h.fig.savefig(plots_path + '/iou_compare')
