@@ -49,6 +49,7 @@ if __name__ == '__main__':
 
 
     # download trained models from google drive
+    os.chdir(CODE_PATH)
     if not os.path.exists(TRAINED_MODELS_PATH) or len(os.listdir(TRAINED_MODELS_PATH)) == 0:
         models_t1 = time.time()
         print('DOWNLOADING MODELS ....')
