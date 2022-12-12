@@ -47,6 +47,7 @@ if __name__ == '__main__':
         data_t2 = time.time()
         print('DOWNLOAD COMPLETE -- ', ((data_t2 - data_t1)/60), ' minutes')
 
+
     # download trained models from google drive
     if not os.path.exists(TRAINED_MODELS_PATH) or len(os.listdir(TRAINED_MODELS_PATH)) == 0:
         models_t1 = time.time()
