@@ -87,11 +87,11 @@ Lunar Landscape Imagery Segmentation
 - [X] Google Drive Data Download
 - [X] Main Script with option to run saved model or train from scratch
 - [X] Freeze requirements.txt
-- [ ] Finalize README
+- [X] Finalize README
 - [X] Test On Clean EC2
-- [ ] Final Report - 12/12/2022
-- [ ] Individual Reports/Code
-- [ ] Final Presentation - 12/12/2022
+- [X] Final Report - 12/12/2022
+- [X] Individual Reports/Code
+- [X] Final Presentation - 12/12/2022
 
 # <a name="topic_proposal"></a>
 ## Topic Proposal
